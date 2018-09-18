@@ -1,0 +1,3 @@
+https://www.lucidchart.com/documents/view/4b454bc1-80ea-4753-9457-7496a5bf661e/0
+
+https://medium.com/@abhijeet.kamble619/10-things-you-should-start-using-in-your-ansible-playbook-808daff76b65
