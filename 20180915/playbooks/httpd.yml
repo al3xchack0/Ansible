@@ -1,0 +1,11 @@
+---
+- name: Playbook for Deploying an httpd server
+  hosts: servera
+  tasks:
+  - name: Including a variable file
+    include_vars: httpd_env.yml
+
+  - name: Including a task file    
+    include: web_server.yml
+
+

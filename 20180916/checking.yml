@@ -1,0 +1,12 @@
+---
+- name: Check file existence
+  hosts: servera,serverb
+  tasks:
+    - stat:
+       path: /etc/hosts
+      register: test
+
+    - debug:
+        var: test
+...
+  

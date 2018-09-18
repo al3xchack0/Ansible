@@ -1,0 +1,61 @@
+---
+- name: Installing httpd package
+  yum:
+    name: "{{ httpd_pkg }}"
+    state: latest
+
+- file:
+    path: /var/www/index/engg
+    state: directory
+    owner: apache
+    group: apache
+
+- file:
+    path: /var/www/index/med
+    state: directory
+    owner: apache
+    group: apache
+  
+- file:
+    path: /var/www/index/law
+    state: directory
+    owner: apache
+    group: apache
+
+- name: copy index file from classroom to managed node 
+  get_url:
+    url: http://classroom.example.com/content/http_index.conf
+    dest: /etc/httpd/conf.d/ 
+    mode: 0777
+    owner: apache
+    group: apache
+
+- name: delete welcome.conf from destination directory on managed nodes 
+  file:
+    path: /etc/httpd/conf.d/welcome.conf
+    state: absent
+
+- name: Starting and enabling httpd service
+  service:
+    name: "{{ httpd_svc }}"
+    state: restarted
+    enabled: true
+
+- name: Opening httpd port in firewall
+  firewalld:
+      #port: 80/tcp
+      service:  http
+      state: enabled
+      permanent: yes
+      immediate: yes
+
+- name: Check that you can connect (GET) to a page and it returns a status 200
+  uri:
+      url: http://servera.lab.example.com/
+      #return_content: yes
+  register: web_access
+
+- debug:
+    var:  web_access
+
+...

@@ -1,0 +1,50 @@
+### ungrouped hosts
+
+servera 
+serverb
+serverc
+serverd
+
+### hostgroup / group of hosts
+[datacenter]
+#system[1:200].example.com
+
+
+[webservers]
+servera
+serverb
+
+[dbservers]
+serverc
+serverd
+
+[lb]
+tower
+
+[apache]
+servera
+serverb
+
+[mariadb]
+serverc
+serverd
+
+[haproxy]
+tower
+
+[nfsserver]
+servera
+
+
+### nested or composite host group
+### used where a specific action needs to be performed on multile hostgroups
+
+[apps:children]
+webservers
+dbservers
+
+[apache:vars]
+pkg=httpd
+
+[all:vars]
+pkg=samba

@@ -1,0 +1,14 @@
+---
+- hosts: server[a-c]
+  tasks:
+  - name: managing motd file
+    copy:
+      dest: /etc/motd
+      content: "{{ message }}"
+  
+  - name: creating file using line in file module
+    lineinfile:
+      path: /etc/msg.txt
+      line: "{{ message }}"
+      create: yes
+      state: present

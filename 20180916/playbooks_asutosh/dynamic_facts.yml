@@ -1,0 +1,14 @@
+- name: Creating dynamic facts 
+  hosts: all
+  tasks:
+  - name: Creating dynamic facts placeholder dir
+    file:
+      path: /etc/ansible/facts.d
+      mode: 0755
+      state: directory
+
+  - name: COpying dynamic fact file      
+    copy:
+      src: space_util.sh
+      dest: /etc/ansible/facts.d/dyna.fact
+      mode: 0755

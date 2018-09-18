@@ -1,0 +1,12 @@
+---
+- hosts: all
+  tasks:
+  - name: Installing a pkg using static facts
+    yum:
+      name: "{{ ansible_local.test.pkg.pkg1 }}"
+      state: latest
+
+  - name: Creating a user using fact
+    user:
+      name: "{{ ansible_local.test.user.user1 }}"
+      state: present

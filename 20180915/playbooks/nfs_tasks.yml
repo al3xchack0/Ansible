@@ -1,0 +1,47 @@
+---
+- name: Installing nfs package
+  yum:
+    name: "{{ nfs_pkg }}"
+    state: latest
+
+- name: Starting and enabling nfs service
+  service:
+    name: "{{ nfs_svc }}"
+    state: restarted
+    enabled: true
+
+- name: Creating nfs share dir
+  file:
+    path: "{{ shared_dir }}"
+    state: directory
+    mode: 0777
+
+- name: Creating export list
+  lineinfile:
+    path: /etc/exports.d/myexports.exports
+    line: "{{ shared_dir }} *(rw)"
+    create: yes
+     
+- name: Opening nfs port in firewall
+  firewalld:
+    #port: 2049/tcp
+    service: nfs
+    state: enabled
+    permanent: yes
+    immediate: yes
+
+- name: Opening nfs port in firewall
+  firewalld:
+    #port: 2049/tcp
+    service:  mountd 
+    state: enabled
+    permanent: yes
+    immediate: yes
+
+- name: Opening nfs port in firewall
+  firewalld:
+    #port: 2049/tcp
+    service:  rpc-bind 
+    state: enabled
+    permanent: yes
+    immediate: yes

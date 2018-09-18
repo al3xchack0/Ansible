@@ -1,0 +1,11 @@
+---
+- name: Check process existence
+  hosts: servera,serverb
+  tasks:
+    - shell: ps -ef|grep httpd
+      register: xyz
+
+    - debug:
+        var: xyz
+...
+  

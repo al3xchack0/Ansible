@@ -1,0 +1,33 @@
+---
+  - name: creating static facts
+    hosts: all
+    tasks: 
+    - name: Creating static facts directory on managed hosts
+      file:
+        path: /etc/ansible/facts.d/
+        mode: 0755
+        state: directory
+
+
+    - name: Creating static facts directory on managed hosts
+      file:
+        path: /etc/ansible/facts.d/memory
+        mode: 0755
+        state: directory
+
+#    - name: Copy static file facts.ini as test.fact to managed hosts
+#      copy:
+#        src: facts.ini
+#        dest: /etc/ansible/facts.d/test.fact
+
+#    - name: Copy dynamic script file as space.fact to managed hosts
+#      copy:
+#        src: space.sh
+#        dest: /etc/ansible/facts.d/space.fact
+#        mode: 0755
+
+    - name: Copy dynamic script file memory.sh as memory.fact to managed hosts
+      copy:
+        src: memory.sh
+        dest: /etc/ansible/facts.d/memory.fact
+        mode: 0755

@@ -1,0 +1,12 @@
+#### Write a playbook "git.yml" thats sets up a git server on servera and serverb , tower
+###git package should be installed iff physical memory is more than 1GB
+---
+- hosts: servera serverb tower
+  tasks:
+  - name: Install git package
+    yum:
+      name: git
+      state:  latest
+    when: 'ansible_memtotal_mb >= 1024'
+...
+

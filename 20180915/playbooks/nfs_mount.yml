@@ -1,0 +1,15 @@
+---
+- hosts: server[bc]
+  tasks:
+  - name: creating the mount point
+    file:
+      path: /mnt/nfs
+      state: directory 
+
+  - name: Mounting nfs share
+    mount:
+      path: /mnt/nfs
+      src:  servera:/var/tmp/nfsshared
+      fstype: nfs
+      opts: "{{ mount_options }}"
+      state:  mounted 

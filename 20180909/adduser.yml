@@ -1,0 +1,18 @@
+---
+- hosts: servera
+  tasks:
+  - name: creating a user called sagar
+    user:
+      name: sagar
+
+#########To Capture O/p of a module use a keyword "register"
+
+    register: xyz
+
+
+  - name: Displaying O/p captured by xyz registered variable
+    debug:
+      var: xyz
+
+  - debug:
+      msg: "Playbook ran successfully"

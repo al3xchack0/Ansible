@@ -1,0 +1,12 @@
+---
+- name: Play for deploying an NFS server
+  hosts: nfsserver
+  user: devops
+  become: yes
+  become_method: sudo
+  become_user: root
+  tasks:
+  - name: "Installing {{ pkg }} related pkgs"
+    yum:
+      name: "{{ pkg }}"
+      state: latest

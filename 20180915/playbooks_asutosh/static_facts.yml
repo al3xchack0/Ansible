@@ -1,0 +1,14 @@
+- name: Creating static facts 
+  hosts: all
+  tasks:
+  - name: Creating static facts placeholder dir
+    file:
+      path: /etc/ansible/facts.d
+      mode: 0755
+      state: directory
+
+  - name: COpying static fact file      
+    copy:
+      src: fact.ini
+      dest: /etc/ansible/facts.d/test.fact
+      mode: 0644

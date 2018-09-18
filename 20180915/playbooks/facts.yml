@@ -1,0 +1,52 @@
+### write a playbook that prints and stores following facts in a file "/tmp/info.txt" 
+#
+#1. OS family
+#2. OS name
+#3. fqdn
+#4. Ip address
+#5. Gateway
+#6. DNS server name
+#7. Total physical memory in MB
+#8. Total cpu count
+#9. kernel version
+#10. total swap space
+#
+
+---
+- hosts: all
+  gather_facts: true
+  tasks:
+  - name: Printing given facts
+    debug:
+      msg: 
+        "{{ ansible_os_family }} 
+        {{ansible_distribution }} 
+        {{ ansible_fqdn }}  
+        {{ ansible_default_ipv4.address }} 
+        {{ ansible_default_ipv4.gateway }} 
+        {{ ansible_dns.nameservers }} 
+        {{ ansible_memtotal_mb }} 
+        {{ ansible_processor_count }} 
+        {{ ansible_kernel }} 
+        {{ ansible_swaptotal_mb }}"
+
+
+  - name: "File holding some system facts"
+    copy:
+      dest: /tmp/info.txt
+      content: |
+        "OS FAMILY:: {{ ansible_os_family }} 
+        OS NAME: {{ansible_distribution }} 
+        FQDN---> {{ ansible_fqdn }}  
+        IP address---> {{ ansible_default_ipv4.address }} 
+        Gateway----> {{ ansible_default_ipv4.gateway }} 
+        DNS name-->  {{ ansible_dns.nameservers }} 
+        Physical mem---> {{ ansible_memtotal_mb }} 
+        PRocessor count ---> {{ ansible_processor_count }} 
+        Kernel version ---> {{ ansible_kernel }} 
+        SWAP MEM total ---> {{ ansible_swaptotal_mb }}"
+
+  - fetch:
+      src: /tmp/info.txt
+      dest: /var/tmp
+
