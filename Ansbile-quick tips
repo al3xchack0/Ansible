@@ -1,0 +1,5 @@
+ansible all --list --> to check all the hosts present in inventory
+ansible playbook.yml --syntax-check  --> to check syntax of the playbook
+ansbible playbook.yml -C  --> dry run without making any changes 
+ansible-doc module-name   --> to check the documentation of the mentioned module
+ansible-doc --list        --> to list all the available ansible modules
