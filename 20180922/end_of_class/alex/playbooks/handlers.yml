@@ -1,0 +1,21 @@
+---
+- hosts: servera
+  tasks:
+  - get_url:
+      url: http://classroom.example.com/content/test.conf
+      dest: /etc/httpd/conf.d/
+    notify: 
+    - restart_apache
+    - restart_postfix
+
+
+  handlers:
+  - name: restart_apache
+    service:
+      name: httpd
+      state: restarted
+
+  - name: restart_postfix
+    service:
+      name: postfix
+      state: restarted

@@ -1,0 +1,17 @@
+servera
+serverb
+serverc
+serverd
+
+
+[webserver]
+servera
+serverb
+
+
+[mailserver]
+serverc
+serverd
+
+
+

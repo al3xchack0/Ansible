@@ -1,0 +1,24 @@
+### checking http://classroom.example.com/content/check.txt accessible or not
+#
+
+- hosts: servera
+  tasks:
+  - uri:
+      url: http://classroom.example.com/content/check.txt11111
+    register: xyz
+    ignore_errors: yes
+
+  - debug:
+      var: xyz
+
+  - get_url:
+      url: http://classroom.example.com/content/check.txt11111
+      dest: /var/tmp
+    when: 'xyz.status == 200'
+    ignore_errors: yes
+
+  - copy:
+      dest: /var/tmp/noaccess.txt
+      content: "LINK WAS NOT ACCESSIBLE"
+    when: 'xyz.status != 200'      
+

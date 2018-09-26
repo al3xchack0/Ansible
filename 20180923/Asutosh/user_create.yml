@@ -1,0 +1,17 @@
+---
+- hosts: servera
+  #vars_files:
+  #- user.yml
+  tasks:
+
+  - name: Including a vars file
+    include_vars: user.yml
+
+
+
+  - name: Creating user using encrypted vars file
+    user:
+      name: "{{ item }}"
+      state: present
+    with_items:
+    - "{{ acc }}"

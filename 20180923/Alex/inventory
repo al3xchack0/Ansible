@@ -1,0 +1,15 @@
+servera abc=tree
+serverc
+serverd
+serverb
+tower
+
+
+[webserver]
+servera
+serverb
+
+
+[mailserver]
+serverc
+serverd

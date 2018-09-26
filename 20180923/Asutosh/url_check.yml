@@ -1,0 +1,14 @@
+---
+- hosts: serverb
+  tasks:
+  - name: Downloading the file if link accessible
+    get_url:
+      url: http://classroom.example.com/content/check.txt
+      dest: /var/tmp/
+    ignore_errors: 1
+
+
+  - name: Creating the file iff link not accessible
+    copy:
+      dest: /var/tmp/noaccess.txt
+      content: "I AM NOT ACCCESSIBLE"

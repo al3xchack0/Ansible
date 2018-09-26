@@ -1,0 +1,22 @@
+---
+- hosts: all
+  tasks:
+  - yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+    - vsftpdzzz
+    - ftpzzz
+    ignore_errors: yes
+  - debug:
+      msg: task skipped
+
+
+  - service:
+      name: vsftpd
+      state: started
+
+### Write a playbook "check.yml" that runs on servera and attempts to download a file from "http://classroom.example.com/content/check.txt" .. if link is accessible download the file to "/var/tmp",
+#
+#if link is not accessible create a file "/var/tmp/noaccess.txt" with content " LINK WAS NOT ACCESSIBLE" 
+        

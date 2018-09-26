@@ -1,0 +1,28 @@
+## Write a playbook that installs "haproxy" package on redhat based systems only
+
+---
+- hosts: all
+  tasks:
+  - name: Install  haproxy on redhat based systems
+    yum:
+      name: haproxy
+      state: latest
+    when: 'ansible_os_family == "RedHat"'
+
+### start haproxy service on servera only
+#
+
+  - name: STarting haproxy service
+    service:
+      name:  haproxy
+      state: started
+    when: 'ansible_hostname ==  "servera" or ansible_hostname == "serverb"'      
+
+### Install a "git" package on servers having atleat 2 cpus and memory greater than 1GB
+#
+
+  - name: Install git
+    yum:
+      name: git
+      state: latest
+    when: 'ansible_processor_count >= 2 and ansible_memtotal_mb > 1024'      

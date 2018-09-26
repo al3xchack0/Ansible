@@ -1,0 +1,37 @@
+## restart httpd service if mariadb service gets restarted
+
+- hosts: all
+  tasks:
+  - name: Restarting mariadb
+    service:
+      name: mariadb
+      state: restarted
+    register: status_code
+
+
+  - debug:
+      var: status_code
+
+  - name: restarting httpd
+    service:
+      name: httpd
+      state: restarted
+    when: 'status_code.state == "started" '      
+
+
+### Restart httpd if postfix is running
+
+
+  - name: Checking status of postfix
+    command: systemctl status postfix
+    register: post_stat
+
+
+  - debug:
+      var: post_stat
+
+
+  - service:
+      name: httpd
+      state: restarted
+    when: 'post_stat.rc == 0'      

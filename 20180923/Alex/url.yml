@@ -1,0 +1,20 @@
+---
+- hosts: servera
+  tasks:
+  - uri:
+      url: http://classroom.example.com/content/check.txt
+    register: xyz
+
+
+  - debug:
+      var: xyz
+
+  - get_url:
+      url:  http://classroom.example.com/content/check.txt
+      dest: /var/tmp/i
+    when: 'xyz.status == 200'
+
+  - copy:
+      dest: /var/tmp/noaccess.txt
+      content:  "Link not accessible"
+    when: 'xyz.status ==! 200'

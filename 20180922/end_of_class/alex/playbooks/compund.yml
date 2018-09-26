@@ -1,0 +1,14 @@
+### Deploy mariadb server on systems having kernel version "3.10.0-514.el7.x86_64" and having arch "x86_64" or on "RHEL"  systems having 1GB ram.
+#
+
+- hosts: all
+  tasks:
+  - name: Installing mariadb
+    yum:
+      name: "{{ item }}"
+      state: latest
+    with_items:
+    - mariadb
+    - mariadb-server
+    - MySQL-python
+    when: (ansible_kernel == "3.10.0-514.el7.x86_64" and ansible_architecture == "x86_64") or ( ansible_distribution == "RedHat" and ansible_memtotal >= 1024)

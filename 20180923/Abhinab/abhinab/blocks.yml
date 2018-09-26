@@ -1,0 +1,32 @@
+---
+- hosts:  serverc
+  tasks:
+  - block:
+    - name: downloading file from give URL
+      get_url:  
+        url:  http://classroom.example.com/content/check.txt
+        dest: /srv
+
+    rescue: 
+    - name: if link not found, creating file
+      copy: 
+        dest: /srv/noaccess.txt
+        content:  "No access"
+
+    always: 
+    - debug: 
+        msg:  "tasks got successful"
+
+  - block:  
+    - name: checking file status
+      stat: 
+       path:  /proc/1122/exec.io
+      failed_when: true
+   
+   
+    rescue:  
+    - name: restarting postfix
+      service:
+        name: postfix
+        state:  restarted
+      

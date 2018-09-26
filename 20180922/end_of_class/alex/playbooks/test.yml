@@ -1,0 +1,18 @@
+#### create user "sagar" using the variable name "un".. iff un var is declared otherwise print "variable not defined !! Do declare var"
+#
+
+
+- hosts: servera
+  vars:
+    un: sagar
+  tasks:
+  - name: Creating user sagar
+    user:
+      name: "{{ un }}"
+      state: present
+    when: 'un is defined'
+
+
+  - debug:
+      msg: "var not declared !! DO declare first"
+    when: 'un is not defined'      

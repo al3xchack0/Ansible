@@ -1,0 +1,47 @@
+---
+- hosts: serverc
+  tasks:
+  - debug:
+      msg: RUNNING SOME TASKS
+
+  - block:
+    - name: Downloading file frm given link
+      get_url:
+        url: http://classroom.example.com/content/check.txt
+        dest: /srv
+
+
+    rescue: 
+    - name: Creating the file if link not accessible
+      copy:
+        dest: /srv/noaccess.txt
+        content: "NO ACCESS"
+
+    always:
+    - debug: 
+        msg: "TASKS GOT SUCCESSFULLY EXECUTED"
+
+
+    - debug:
+        msg: completed all tasks
+
+
+### add ansible blocks for checking iff /proc/1122/exec.io exists.. if it doesnt exists restart "postfix service"
+
+
+
+
+
+  - block:
+    - name: Checking if file /proc/1122/exec.io exists      
+      stat:
+        path: /proc/1122/exec.io
+      failed_when: true          
+
+    rescue:
+    - service:
+        name: postfix
+        state: restarted
+
+
+

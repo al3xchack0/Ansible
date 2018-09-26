@@ -1,0 +1,23 @@
+## check whether a file "/tmp/.proc_mgr_stat exists  or not , if it doesnt exists "print "file not there" , if file  exists restart nginx server/reboot the system"
+
+- hosts: all
+  tasks:
+  - name: Checking /tmp/.proc_mgr_stat file if exists
+    stat:
+      path: /tmp/.proc_mgr_stat
+    register: xyz
+
+  - debug:
+      var: xyz
+
+  - debug:
+      msg: "FNF"
+    when: 'xyz.stat.exists == false'      
+
+  - service:
+      name: nginx
+      state: restart 
+    when: 'xyz.stat.exists == true'      
+
+  - command: shutdown -r
+    when: 'xyz.stat.exists == true'      

@@ -1,0 +1,16 @@
+### restart httpd on servera
+
+- hosts: all
+  tasks:
+  - name: Restarting httpd
+    service:
+      name: httpd
+      state: restarted
+    #when: 'ansible_hostname == "servera"'      
+    #when: inventory_hostname in ['servera','serverb']      
+  
+
+## Running a module on a hostgroup
+    #when: inventory_hostname in groups['web']
+    when: inventory_hostname in groups.web
+    #when: groups in ['web']

@@ -1,0 +1,24 @@
+### playbook for downloading config file from "http://classroom.example.com/content/test.conf"  ... if there is any change in the config file ,,, should restart the service
+#
+
+---
+- hosts: servera
+  tasks:
+  - get_url:
+      url: http://classroom.example.com/content/test.conf
+      dest: /etc/httpd/conf.d/
+    register: ret
+
+
+  - debug:
+      var:  ret
+
+  - name: Restarting httpd iff config change happens
+    service:
+      name: httpd
+      state: restarted
+    when: 'ret.changed == true'      
+
+###    
+
+

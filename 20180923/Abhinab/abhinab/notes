@@ -1,0 +1,46 @@
+
+Implementing Tags
+------------------
+Every module can be tagged so that we can run only the required modules instead of all the modules. 
+it should be decleared at the same level as that of module.
+ansible-playbook  first.yml --list-tags  to list tags in a file
+
+ansible-playbook first.yml --skip-tags=httpd -- to run all the modules other than tagged httpd
+special tag options
+----------------------
+tagged -- to call only tagged modules
+untagged -- to call only untagged modules
+all -- to call all modules
+ansible-playbook first.yml -t tagged
+
+Special tag value  
+-----------------
+always -- this will execute the module always even if you don't call it
+only if you user --skip-tags always , then only it will skip the always tagged modules
+-----------------------------------------------------------------------------------------------------------------------------------------------
+Error Handling
+----------------
+ignore_errors:	yes  --> this will skip the erros and will go on to execute the rest of the modules instead of skipping them
+
+Que-- Write a playbook chech.yml that runs on servera and attempts to download a file from "http://classroom.example.com/content/check.txt". If the link is acessible download the file to /var/tmp.
+if the link is not accessible create a file "/var/tmp/noaccess.txt" with "link was not accessible"
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+Using Blocks in playbook 
+-----------------------
+block (for including modules that might fail)
+rescue (modules to run iff modules under block fails)
+always (modules to run always irrespective of block/rescue)
+
+failed_when: true -- if you need to make module fail if the required action doesn't fail the module
+--------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ansible vault
+-------------
+Encryption mechanism to encrypt the sensitive data. It converts the data to encrypted text.
+it user AES algorithm to encryption of data.
+ansible-vault --> to create/decrypt encrypted file.
+
+ansible-vault -create -- this will create a new file and encrypt it
+ansible-vault -encrypt -- will encrypt the existing file/content
+
+once the file is created, it can be only viewed using the password 

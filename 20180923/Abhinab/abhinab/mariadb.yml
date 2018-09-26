@@ -1,0 +1,15 @@
+---
+- name: installing mariadb
+  hosts:  all
+  tasks:  
+  - yum:  
+      name: "{{item}}"
+      state:  present
+    with_items:
+    - vsftpd
+    - ftpss
+    ignore_errors:  yes
+
+  - service:
+      name: vsftpd
+      state:  restarted

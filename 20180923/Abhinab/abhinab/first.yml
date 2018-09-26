@@ -1,0 +1,42 @@
+---
+- hosts:  all
+  tasks:  
+  - name: installing httpd
+    yum:  
+      name: httpd
+      state:  latest
+    when: inventory_hostname in groups.webserver
+    tags:
+    - httpd
+    - install
+
+  - name: restart httpd
+    service:  
+      name: httpd
+      state:  restarted
+    when: inventory_hostname in groups.webserver
+    tags: 
+    - httpd
+    - svc
+
+  - name: installing postfix
+    yum:
+      name: postfix
+      state:  present
+    when: inventory_hostname in groups.db
+    tags: 
+    - mail
+    - svc
+
+  - name: restart postfix
+    service:
+      name: postfix
+      state:  restarted
+    when: inventory_hostname in groups.db
+    tags:
+    - mail
+    - svc
+
+  - debug:
+      msg:  "hello world"
+    tags: always

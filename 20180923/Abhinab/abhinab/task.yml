@@ -1,0 +1,25 @@
+---
+- name: 
+  hosts:  servera
+  tasks:
+  - name: checking the status of file
+    uri:  
+      url:  http://classroom.example.com/content/check.txt
+    register: url_status
+  
+  #- debug:
+  #    var:  url_status
+
+  - name: downloading file
+    get_url:
+      url:  http://classroom.example.com/content/check.txt
+      dest: /var/tmp/check.txt
+    ignore_errors:  yes
+
+  - name: create other file if not accessible
+    copy: 
+      dest: /var/tmp/noaccess.txt
+      content:  "LINK WAS NOT ACCESSIBLE"
+    #when: url_status.status != 200
+
+

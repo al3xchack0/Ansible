@@ -1,0 +1,21 @@
+---
+- hosts: servera
+  tasks:
+  - uri:
+      url: http://classroom.example.com/content/http_index.conf
+    register: xyz
+
+
+  - debug:
+      var: xyz
+
+
+  - debug:
+      msg: "LINK ACCESSIBLE"
+    when: 'xyz.status ==  200'      
+
+  - debug:
+      msg: "LINK NOT  ACCESSIBLE"
+    when: 'xyz.status !=  200'      
+
+### check whether a file "/etc/motd" if exists, create the file with content "Hello world" when file doesnt exists    
