@@ -1,0 +1,28 @@
+---
+- name: Installing lb package
+  yum:
+    name: "{{ lb_pkg }}"
+    state: latest
+  when: inventory_hostname in groups.lb    
+
+- name: pushing lb config. file
+  get_url:
+    url: http://classroom.example.com/content/haproxy.cfg
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0644
+    force: yes
+  ignore_errors: yes    
+  notify: restart_lb
+  when: inventory_hostname in groups.lb
+
+- name: Opening  LB service Port
+  firewalld:
+    port: "{{ lb_port }}"
+    state: enabled
+    permanent: yes
+    immediate: yes
+  when: inventory_hostname in groups.lb
+  
+

@@ -1,0 +1,51 @@
+#---
+#- hosts: all
+#  roles: 
+#  - 3tier
+#  - cassandra
+#  - mongodb
+#  - security
+
+#- hosts: all
+#  roles:
+#  - role: 3tier
+#    pkg: nginx
+#
+#
+#  - role: cassandra
+#  - role: hardening
+#  - role: cloud_infra
+#
+#
+## Controlling order of execution
+
+- hosts: all
+  pre_tasks:
+  - name: Configuring accessible repository
+    yum_repository:
+      baseurl: http://xyz/com/packages
+      name: test_repo
+      gpgcheck: false
+      description:  YUM rep
+
+
+  roles:
+  - 3tier
+
+  post_tasks:
+  - name: Checking deployed application if accessible
+    uri:
+      url: http://172.25.3.0/webappi
+    register: op
+
+
+
+
+
+
+
+
+
+
+
+

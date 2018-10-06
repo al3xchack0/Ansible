@@ -1,0 +1,9 @@
+---
+- hosts: servera
+  tasks:
+  - command: httpd -t
+    register: oop
+    ignore_errors: yes
+
+  - debug:
+      var: oop

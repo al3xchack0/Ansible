@@ -1,0 +1,170 @@
+    1  ls
+    2  mkdir playbooks
+    3  cd playbooks
+    4  vim ansible.cfg
+    5  vim ~/.vimrc
+    6  vim inventory
+    7  ansible-galaxy --help
+    8  ansible-galaxy login --help
+    9  ansible-galaxy list --help
+   10  ansible-galaxy --help
+   11  mkdir -pv cassandra/{defaults,meta,files,templates,tasks,handlers,vars}
+   12  touch  -v cassandra/{defaults,meta,tasks,handlers,vars}/main.yml
+   13  touch   cassandra/{defaults,meta,tasks,handlers,vars}/main.yml
+   14  sudo yum install tree -y
+   15  tree cassandra/
+   16  touch   cassandra/{defaults,meta,tasks,handlers,vars}/main.yml
+   17  tree cassandra/
+   18  mv cassandra/ 3tier
+   19  tree 3tier/
+   20* 
+   21  ls 3tier/tasks/
+   22  #vim 3tier/tasks/web.yml 
+   23  cd
+   24  cd playbooks/
+   25  tree 3tier/
+   26  vim playbook.yml
+   27  vim 3tier/meta/main.yml 
+   28  cat 3tier/meta/main.yml
+   29  vim playbook.yml
+   30  ls
+   31  mkdir roles
+   32  ls
+   33  mv 3tier/ roles/
+   34  #mkdir -pv roles/motd/{defaults,meta,files,templates,tasks,handlers,vars}
+   35  ls roles/
+   36  mkdir -pv roles/motd/{defaults,meta,files,templates,tasks,handlers,vars}
+   37  ls roles/
+   38  touch   roles/motd/{defaults,meta,tasks,handlers,vars}/main.yml
+   39  tree roles/motd/
+   40  vim roles/motd/tasks/main.yml 
+   41  vim roles/motd/templates/motd.j2
+   42  vim roles/motd/defaults/main.yml 
+   43  cat roles/motd/defaults/main.yml
+   44  cat roles/motd/vars/main.yml
+   45  vim roles/motd/vars/main.yml
+   46  cat roles/motd/vars/main.yml
+   47  vim motd_role_use.yml
+   48  ansible-playbook motd_role_use.yml
+   49  ls
+   50  vim motd_role_use.yml 
+   51  vim roles/motd/vars/main.yml 
+   52  ansible-playbook motd_role_use.yml
+   53  #ansible-playbook motd_role_use.yml
+   54  ansible-galaxy --help
+   55  ansible-galaxy init --help
+   56* ansible-galaxy init web_role
+   57  ls
+   58  tree db_role/
+   59  ansible-galaxy init --help
+   60  ansible-galaxy init -p roles web_role
+   61  ls roles/
+   62  tree roles/web_role/
+   63  ansible-galaxy init -p /srv/ infra_docker
+   64  sudo ansible-galaxy init -p /srv/ infra_docker
+   65  tree /srv/infra_docker/
+   66  ansible-galaxy
+   67  ### TO download an ansible role from intranet/internet
+   68  ansible-galaxy
+   69  ansible-galaxy install --help
+   70  ansible-galaxy install
+   71  vim src_url.yml
+   72  cat src_url.yml
+   73  ansible-galaxy install -r src_url.yml 
+   74  ansible --version
+   75  cat ansible.cfg 
+   76  vim /etc/ansible/ansible.cfg 
+   77  ansible-galaxy install --help
+   78  vim ansible.cfg 
+   79  ansible-galaxy install -r src_url.yml 
+   80  ls roles/
+   81  ansible-galaxy install -r src_url.yml -p /var/tmp/
+   82  tree roles/student_role/
+   83  vim roles/student_role/tasks/main.yml 
+   84  vim student_role.yml
+   85  ansible-playbook student_role.yml
+   86  vim student_role.yml
+   87  ls roles/3tier/
+   88  ls -R roles/3tier/
+   89  ls roles/3tier/tasks/
+   90  vim roles/3tier/tasks/web.yml 
+   91  vim roles/3tier/defaults/main.yml 
+   92  cat roles/3tier/defaults/main.yml
+   93  mv  roles/3tier/defaults/main.yml  roles/3tier/defaults/web_vars.yml
+   94  vim roles/3tier/handlers/main.yml 
+   95  cat roles/3tier/defaults/web_vars.yml 
+   96  vim  roles/3tier/defaults/web_vars.yml 
+   97  cat  roles/3tier/handlers/main.yml 
+   98  vim roles/3tier/templates/web.j2
+   99  cat roles/3tier/templates/web.j2
+  100  vim roles/3tier/tasks/web.yml 
+  101  vim roles/3tier/tasks/db.yml 
+  102  vim roles/3tier/tasks/lb.yml 
+  103  cd roles/3tier/
+  104  ls
+  105  cd tasks/
+  106  ls
+  107  vim main.yml 
+  108  cat main.yml
+  109  cd ../defaults/
+  110  ls
+  111  vim main.yml
+  112  cat main.yml
+  113  cd ../
+  114  cd ..
+  115  ls
+  116  vim inventory 
+  117  vim roles/3tier/tasks/web.yml 
+  118  vim roles/3tier/tasks/db.yml 
+  119  vim roles/3tier/tasks/lb.yml 
+  120  vim main_playbook.yml
+  121  ansible-playbook main_playbook.yml
+  122  vim roles/3tier/defaults/main.yml 
+  123  cd roles/3tier/defaults/
+  124  ls
+  125  vim main.yml 
+  126  cat web_vars.yml 
+  127  cat db_vars.yml 
+  128  vim db_vars.yml 
+  129  cd ~/playbooks/
+  130  ansible-playbook main_playbook.yml
+  131  cd -
+  132  ls
+  133  cat db_vars.yml 
+  134  cat web_vars.yml 
+  135  cat lb.yml 
+  136  vim db_vars.yml 
+  137  cd -
+  138  ansible-playbook main_playbook.yml
+  139  cd -
+  140  vim db_vars.yml 
+  141  cd -
+  142  ansible-playbook main_playbook.yml
+  143  cd -
+  144  vim main.yml 
+  145  ls
+  146  vim main.yml 
+  147  cat db_vars.yml lb.yml web_vars.yml > main.yml 
+  148  cd -
+  149  ansible-playbook main_playbook.yml
+  150  cd -
+  151  vi main.yml 
+  152  cd -
+  153  ansible-playbook main_playbook.yml
+  154  vim roles/3tier/tasks/web.yml 
+  155  ansible-playbook main_playbook.yml
+  156  vim roles/3tier/files/webcontent.html
+  157  ansible-playbook main_playbook.yml
+  158  vim roles/3tier/tasks/db.yml 
+  159  vim roles/3tier/defaults/main.yml 
+  160  ansible-playbook main_playbook.yml
+  161  vim roles/3tier/tasks/lb.yml 
+  162  ansible-playbook main_playbook.
+  163  ansible-playbook main_playbook.yml 
+  164  vim roles/3tier/defaults/main.yml 
+  165  ansible-playbook main_playbook.yml 
+  166  vim roles/3tier/tasks/lb.yml 
+  167  ansible-playbook main_playbook.yml 
+  168  vim inventory 
+  169  ls -l
+  170  history > hist_list.txt

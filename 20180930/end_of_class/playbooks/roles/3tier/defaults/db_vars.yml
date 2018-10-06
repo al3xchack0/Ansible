@@ -1,0 +1,7 @@
+db_pkg: mariadb-server
+
+
+db_svc: mariadb-server
+
+
+db_port: 3306/tcp

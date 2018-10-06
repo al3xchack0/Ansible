@@ -1,0 +1,49 @@
+2018-09-28 09:27:55,842 p=7590 u=student |  PLAY [all] *********************************************************************
+2018-09-28 09:27:55,874 p=7590 u=student |  TASK [Gathering Facts] *********************************************************
+2018-09-28 09:27:56,833 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:27:56,957 p=7590 u=student |  ok: [servera]
+2018-09-28 09:27:56,968 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:27:56,972 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:27:57,009 p=7590 u=student |  ok: [tower]
+2018-09-28 09:27:57,012 p=7590 u=student |  TASK [yum] *********************************************************************
+2018-09-28 09:27:58,185 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:27:58,208 p=7590 u=student |  ok: [tower]
+2018-09-28 09:27:58,226 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:27:58,437 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:27:58,532 p=7590 u=student |  ok: [servera]
+2018-09-28 09:27:58,535 p=7590 u=student |  TASK [template] ****************************************************************
+2018-09-28 09:28:00,486 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:28:00,498 p=7590 u=student |  ok: [servera]
+2018-09-28 09:28:00,498 p=7590 u=student |  ok: [tower]
+2018-09-28 09:28:00,511 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:28:00,513 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:28:00,517 p=7590 u=student |  TASK [template] ****************************************************************
+2018-09-28 09:28:01,975 p=7590 u=student |  ok: [tower]
+2018-09-28 09:28:02,121 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:28:02,147 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:28:02,183 p=7590 u=student |  ok: [servera]
+2018-09-28 09:28:02,188 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:28:02,191 p=7590 u=student |  TASK [command] *****************************************************************
+2018-09-28 09:28:02,882 p=7590 u=student |  changed: [servera]
+2018-09-28 09:28:02,903 p=7590 u=student |  changed: [serverb]
+2018-09-28 09:28:02,912 p=7590 u=student |  changed: [serverd]
+2018-09-28 09:28:02,931 p=7590 u=student |  changed: [serverc]
+2018-09-28 09:28:02,987 p=7590 u=student |  changed: [tower]
+2018-09-28 09:28:02,990 p=7590 u=student |  TASK [service] *****************************************************************
+2018-09-28 09:28:03,707 p=7590 u=student |  ok: [servera]
+2018-09-28 09:28:03,708 p=7590 u=student |  ok: [tower]
+2018-09-28 09:28:03,715 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:28:03,716 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:28:03,752 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:28:03,755 p=7590 u=student |  TASK [firewalld] ***************************************************************
+2018-09-28 09:28:04,630 p=7590 u=student |  ok: [serverd]
+2018-09-28 09:28:04,700 p=7590 u=student |  ok: [tower]
+2018-09-28 09:28:04,709 p=7590 u=student |  ok: [serverc]
+2018-09-28 09:28:04,762 p=7590 u=student |  ok: [servera]
+2018-09-28 09:28:04,821 p=7590 u=student |  ok: [serverb]
+2018-09-28 09:28:04,823 p=7590 u=student |  PLAY RECAP *********************************************************************
+2018-09-28 09:28:04,823 p=7590 u=student |  servera                    : ok=7    changed=1    unreachable=0    failed=0   
+2018-09-28 09:28:04,823 p=7590 u=student |  serverb                    : ok=7    changed=1    unreachable=0    failed=0   
+2018-09-28 09:28:04,823 p=7590 u=student |  serverc                    : ok=7    changed=1    unreachable=0    failed=0   
+2018-09-28 09:28:04,823 p=7590 u=student |  serverd                    : ok=7    changed=1    unreachable=0    failed=0   
+2018-09-28 09:28:04,823 p=7590 u=student |  tower                      : ok=7    changed=1    unreachable=0    failed=0   

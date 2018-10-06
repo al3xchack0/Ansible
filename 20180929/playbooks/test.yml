@@ -1,0 +1,20 @@
+### Write a playbook that pushes a template "motd.j2" to all the systems Displaying their hostname, Ip address and total memory , os distro
+#
+
+---
+- hosts: all
+  tasks:
+  - name: Copying a template
+    template:
+      src: motd.j2
+      dest: /etc/motd
+
+### copy a templates sudoers.j2 that manages sudo accounts on all the machines having access to all commands but not to /bin/bash and /bin/su
+#
+#sudo account list
+##servera ----> ramu, alex,
+## serverb ---> naveen,abhinav,anil
+## serverc ----> naren,saiprasad
+## serverd ----> mohan,sandhya
+## tower ----> Muthu,shiva
+

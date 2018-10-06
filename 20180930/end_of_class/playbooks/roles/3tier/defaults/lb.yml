@@ -1,0 +1,4 @@
+---
+lb_pkg: haproxy
+lb_port: 80/tcp
+lb_svc: haproxy

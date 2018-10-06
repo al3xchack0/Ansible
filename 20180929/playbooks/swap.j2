@@ -1,0 +1,9 @@
+{# KERNEL PARAMS FOR SWAP SETTING #}
+
+{% if ansible_swaptotal_mb > 0 %}
+
+vm.swappiness = 10
+
+{% endif %}
+
+

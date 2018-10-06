@@ -1,0 +1,24 @@
+- name: Installing mariadb 
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items: 
+  - "{{ db_pkg }}"
+  when: inventory_hostname in groups.db
+
+- name: Restarting mariadb service
+  service:
+    name: "{{ db_svc }}"
+    state: started
+  when: inventory_hostname in groups.db
+    
+- name: Opeing DB port
+  firewalld:
+    port: "{{ db_port }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  when: inventory_hostname in groups.db
+
+
+

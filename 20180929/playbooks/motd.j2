@@ -1,0 +1,7 @@
+IP ADDR-----> {{ ansible_default_ipv4.address }} 
+FQDN   ----->{{ ansible_fqdn }}
+MEMORY ----->{{ ansible_memtotal_mb }}
+OS_DISTRO--->{{ ansible_distribution }}
+
+SYSTEM message is  {{ msg }}
+{{ ansible_env.PATH }}

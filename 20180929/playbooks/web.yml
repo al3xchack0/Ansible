@@ -1,0 +1,62 @@
+---
+- name: Play for setting up HAproxy loadbalancer
+  hosts: tower
+  tasks:
+  - name: Installing haproxy
+    yum:
+      name: haproxy
+      state: latest
+
+  - copy:
+      src: haproxy.cfg
+      dest: /etc/haproxy/haproxy.cfg
+    register: restart_lb      
+
+  - firewalld:
+      port: 80/tcp
+      state: enabled
+      permanent: true
+      immediate: true
+
+  handlers:      
+  - name: restart_lb
+    service:
+      name: haproxy
+      state: restarted
+      enabled: true
+
+- name: Play for setting up a webserver cluster
+  hosts: server[a-c]
+  tasks:
+  - yum:
+      name: httpd
+      state: latest
+
+  - template:
+      src: web.j2
+      dest: /etc/httpd/conf.d/test.conf
+      owner: apache
+      group: apache
+
+  - template:
+      src: index.html.j2
+      dest: /var/www/html/index.html
+      owner: apache
+      group: apache
+
+  - command: httpd -t      
+    register: xyz
+
+  - service:
+      name: httpd
+      state: started
+      enabled: true
+    when: 'xyz.rc == 0'      
+
+
+  - firewalld:
+      service: http
+      state: enabled
+      permanent: true
+      immediate: true
+      

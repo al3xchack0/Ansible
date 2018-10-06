@@ -1,0 +1,15 @@
+---
+- name: restart_apache
+  service:
+    name: "{{ web_svc }}"
+    state: restarted
+    enabled: true
+
+- name: restart_lb
+  service:
+    name: "{{ lb_svc }}"
+    state: restarted
+    enabled: true
+    
+
+

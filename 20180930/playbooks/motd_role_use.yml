@@ -1,0 +1,7 @@
+---
+- name: Playbook to invoke a role
+  hosts: all
+
+
+  roles:
+  - motd

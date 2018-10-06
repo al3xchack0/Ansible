@@ -1,0 +1,17 @@
+db_pkg: mariadb-server
+db_svc: mariadb-server
+db_port: 3306/tcp
+lb_pkg: haproxy
+lb_port: 80/tcp
+lb_svc: haproxy
+web_pkg: httpd
+web_port: 80/tcp
+web_svc: httpd
+
+db_pkg: mariadb-server
+
+
+db_svc: mariadb
+
+
+db_port: 3306/tcp

@@ -1,0 +1,19 @@
+servera msg="Hello world"
+serverb msg="Hi"
+serverc msg="hello"
+serverd msg="How u doin"
+tower   msg="aloha"
+
+
+[loadbalancer]
+servera
+
+
+[webserver]
+serverb
+serverc
+serverd
+
+
+[monitoring]
+tower

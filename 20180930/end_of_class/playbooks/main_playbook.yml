@@ -1,0 +1,5 @@
+---
+- name: APP playbook
+  hosts: web,lb,db
+  roles:
+  - 3tier

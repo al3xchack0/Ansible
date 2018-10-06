@@ -1,0 +1,40 @@
+---
+- hosts: all
+  tasks:
+#  - user:
+#      name: "{{ item }}"
+#      state: present
+#    with_items:
+#    - "{{ acc }}"
+#  - name: Copying a sudoers template
+#    template:
+#      src: sudoer.j2
+#      dest: /etc/sudoers.d/admins
+#
+### write a playbook "swap.yml" for setting a kernel parameter value as 
+#
+# vm.swappiness = 10  , iff swap space exists on that system
+
+#  - name: Creating kernel parameters file
+#    copy:
+#      dest: /etc/sysctl.d/swap.conf
+#      content: vm.swappiness = 10
+#    when: 'ansible_swaptotal_mb > 0'      
+
+
+  - name: Copying a kernel_params template
+    template:
+      src: swap.j2
+      dest: /etc/sysctl.d/swap.conf
+    notify: system_reboot
+
+
+  handlers:
+  - name: system_reboot
+    command: reboot
+         
+
+
+
+
+
