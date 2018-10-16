@@ -1,0 +1,12 @@
+{
+    "eula_accepted": "true", 
+    "company_name": "Red Hat, Inc.", 
+    "contact_email": "curriculum+gls@redhat.com", 
+    "contact_name": "Red Hat Curriculum", 
+    "hostname": "9068586c926c4310acdb1ad8ecfc5d2d", 
+    "instance_count": 10, 
+    "license_date": 1526066133, 
+    "license_key": "0024ac6b0fa40f110735e6f9b5a9a955d6a196e929ddbfeba0fc19d420fc0ada", 
+    "license_type": "enterprise", 
+    "subscription_name": "Ansible Tower by Red Hat, Premium (10 Managed Nodes) NFR"
+}

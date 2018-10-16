@@ -1,0 +1,157 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-deploy-cr - script for DO407 Comprehensive Section 1 practice
+#
+# SYNOPSIS
+#     lab-ansible-deploy-cr {setup|grade|reset}
+#
+#        setup   - copy templates to ~student on workstation
+#        grade   - perform lab evaluation steps
+#        reset   - remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script ensures that the managed host servera and serverb are reachabable
+#     on the network. It also creates the directory structure for the lab in student's
+#     home directory
+#
+# CHANGELOG
+#   * Wed Jun 28 2017 Chen Chang <cchang@redhat.com>
+#   - Modify script to work better with new labtool.shlib
+#   * Thu May 16 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+managed_nodea='servera.lab.example.com'
+managed_nodeb='serverb.lab.example.com'
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/ansible-deploy-cr
+
+#declare -a valid_commands=(setup grade solve cleanup reset)
+declare -a valid_commands=(setup grade reset)
+
+function lab_setup {
+  print_header "Setting up ${control_node} for lab exercise work:"
+ 
+  host_reachable ${control_node}
+  host_reachable ${managed_nodea}
+  host_reachable ${managed_nodeb}
+  pad " . Checking if control host is reachable"
+  if ! host_reachable ${control_node}; then
+    print_FAIL
+  else
+    print_SUCCESS
+  fi
+  
+  pad " . Checking if managed hosts are reachable"
+  if ! host_reachable ${managed_nodea} && ! host_reachable ${managed_nodeb}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  install -d ${working_dir} -o student -g student -m 755 ${working_dir}
+  if [ -d ${working_dir} ];then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+  pad " . Creating the inventory directory"
+  install -d ${working_dir} -o student -g student -m 755 ${working_dir}/inventory
+
+  if [ -d ${working_dir}/inventory ];then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+}
+
+function lab_grade {
+
+  print_header "Grading the student's work on ${control_node}:"
+  host_reachable ${control_node}
+
+  pad " . Checking if Ansible is installed"
+  if ! rpm -q --quiet 'ansible'
+  then
+    print_FAIL
+  else
+    print_PASS
+  fi
+
+  pad " . Checking inventory file exists"
+  if stat ${working_dir}/inventory/hosts; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Checking the host groups defined"
+  cd ${working_dir}
+  inv_hosts=$(ansible dev --list-host | sort | xargs)
+  if [ "$inv_hosts" == 'hosts (2): servera.lab.example.com serverb.lab.example.com' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  pad " . Verifying the /etc/motd file content"
+  cd ${working_dir}
+  motd_count=$(ansible dev -m command -a 'cat /etc/motd' | grep -c 'Managed by Ansible')
+  if [ $motd_count -eq 2 ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Overall grade
+  print_line
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi  
+}
+
+function lab_reset {
+
+  print_header "Resetting the lab on ${control_node}:"
+  host_reachable ${control_node}
+
+  if [ -f ${working_dir}/inventory/hosts ];then
+     pad ' . Undoing tasks on managed nodes'
+     ansible dev -i ${working_dir}/inventory/hosts -m shell -a "> /etc/motd"
+     print_SUCCESS
+  fi
+
+  pad ' · Removing Ansible'
+  yum remove -y ansible
+  print_SUCCESS
+
+  pad ' · Removing project directory'
+  rm -rf ${working_dir}
+  print_SUCCESS
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

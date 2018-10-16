@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-tower-users - script for DO407 Ansible tower practice
+#
+# SYNOPSIS
+#     lab-ansible-tower-users {setup|grade|solve|cleanup|reset}
+#
+#        setup   - copy templates to ~student on workstation
+#        grade   - perform lab evaluation steps
+#        solve   - do the lab exercise for the student (may call setup)
+#        cleanup - remove changes applied to serverb and tower hosts
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to confirm if a student has created two Ansible
+#     roles - one customizes a user environment and the other configures
+#     an Apache webserver. The user environment role requires an argument
+#     that specifies which user to customize. The Apache role takes an
+#     optional argument that enables the web server when set to true.
+#
+# CHANGELOG
+#   * Fri Apr 29 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+tower='tower'
+
+lab_dir="/home/student/ansible"
+
+declare -a valid_commands=(setup reset)
+
+function lab_setup {
+  lab_reset
+
+  echo
+  echo "Setting up ${tower} for lab exercise work:"
+  echo
+  host_reachable ${tower}
+
+  pad " . Ensuring Ansible Tower is reachable"
+  cmd1="curl -s https://tower.lab.example.com/api/v1/ping/ -k | grep tower.lab.example.com"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+}
+
+function lab_grade {
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+  host_reachable ${control_node}
+}
+
+function lab_cleanup {
+
+  host_reachable ${tower}
+
+  echo "Nothing to cleanup"
+}
+
+function lab_solve {
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+}
+
+function lab_reset {
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,40 @@
+### Playbook for creating tarballs     
+
+---
+- name: Playbook for creating tarballs   
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+#  - name: creating production tarball
+#    shell: tar cfz /var/tmp/production.tar.gz /var/www/html
+#    tags: production
+#    when: inventory_hostname in groups.production
+#
+#
+#  - name: creating backup tarball
+#    shell: tar cfz /var/tmp/backup.tar.gz /var/log/httpd
+#    tags: backup
+#    when: inventory_hostname in groups.backup
+#
+
+  - name: creating production tarball
+    archive:
+      path: /var/www/html
+      dest: /var/tmp/production.tar.gz
+      format: gz
+    tags: production
+    when: inventory_hostname in groups['production']
+
+  - name: creating backup tarball
+    archive:
+      path: /var/log/httpd
+      dest: /var/tmp/backup.tar.gz
+      format: gz
+    tags: backup    
+    when: inventory_hostname in groups['backup']
+
+

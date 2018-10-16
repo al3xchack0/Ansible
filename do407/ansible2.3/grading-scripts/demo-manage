@@ -1,0 +1,193 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-manage - demo script for DO407 managing Ansible demo
+#
+# SYNOPSIS
+#     demo-manage {setup|cleanup|reset}
+#
+#        setup   - create role as ~student on workstation
+#        cleanup - remove changes applied to servera
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to setup the managing Ansible demo.
+#
+# CHANGELOG
+#   * Tue May 16 2016 Chen Chang <cchang@redhat.com>
+#   - changes to accomodate new directory structure
+#   * Tue May  3 2016 Chen Chang <cchang@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+
+labname=manage-demo
+lab_dir='/home/student/dep-config'
+
+student_ansible_cfg="${lab_dir}/myansible.cfg"
+student_ansible_cfg2="${lab_dir}/ansible.cfg"
+student_ansible_cfg3='/home/student/.ansible.cfg'
+student_inventory="${lab_dir}/inventory"
+
+declare -a valid_commands=(setup cleanup reset)
+
+function lab_setup {
+
+  control_node=${targetw}
+
+  # Check for lab prerequisites (perhaps a required package?).
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+  else
+    if yum install -y ${reqd_package} &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+}
+
+
+function lab_cleanup {
+
+  target=${targetw}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg2}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg3}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+
+  pad ' · Remove inventory'
+
+  file="${student_inventory}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+
+  pad ' · Remove demo directory'
+
+  file="${lab_dir}"
+  cmd1="rm -rf $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+function lab_reset {
+
+  target=${targetw}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg2}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+  pad ' · Remove Ansible configuration file'
+
+  file="${student_ansible_cfg3}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+
+  pad ' · Remove inventory'
+
+  file="${student_inventory}"
+  cmd1="rm -f $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+
+  pad ' · Remove demo directory'
+
+  file="${lab_dir}"
+  cmd1="rm -rf $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+
+}
+
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,56 @@
+- name: Playbook for creating user credential protected webpage
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: Creating /var/www/html/private Directory
+    file:
+      path: /var/www/html/private
+      state: directory
+      mode: 0755
+      owner: apache
+      group: apache  
+
+  - name: Downloading http://classroom.example.com/pub/htaccess-custom
+    get_url: 
+      url: http://classroom.example.com/pub/htaccess-custom
+      dest: /var/www/html/private/.htaccess 
+      mode: 0644
+      owner: apache
+      group: apache  
+
+  - name: Downloading http://classroom.example.com/pub/htpasswd
+    get_url:
+      url: http://classroom.example.com/pub/htpasswd
+      dest: /var/www/html/private/.htpasswd
+      mode: 0644
+      owner: apache
+      group: apache  
+
+  - name: Replacing some parameters in config.
+    replace:
+      path: /etc/httpd/conf/httpd.conf
+      regexp: 'AllowOverride none'
+      replace: 'Allowoverride AuthConfig'
+
+  - name: Creating a web page
+    copy:
+      dest: /var/www/html/private/index.html
+      content: "This {{ ansible_hostname }} is protected"
+      mode: 0644
+      owner: apache
+      group: apache  
+
+  - name: Restart httpd service
+    service:
+      name: httpd
+      state: restarted
+      enabled: true
+
+    
+
+
+

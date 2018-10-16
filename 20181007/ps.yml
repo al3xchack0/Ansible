@@ -1,0 +1,12 @@
+---
+- hosts: all
+  tasks:
+  - debug:
+      msg: "{{ ansible_hostname}}"
+    #when: inventory_hostname in ['serverd']
+    delegate_to: servera
+
+#  - file:
+#      path: /tmp/902903902.txt
+#      state: directory
+#    delegate_to: serverd      

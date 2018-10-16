@@ -1,0 +1,438 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-task-control - grading script for DO407
+#
+# SYNOPSIS
+#     lab-task-control {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for tasks.
+#
+# CHANGELOG
+#   * Wed Jun 21 2017 Artur Glogowski <aglogows@redhat.com>
+#   - changed echo to print_line and print_header in grading
+#   * Tue May 24 2016 George Hacker <ghacker@redhat.com>
+#   - changed working directory to lab-task-control (no underscore)
+#   * Tue May 17 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - lab_setup provides student with a working config and inventory
+#   - changed pkg parameter for yum module to name
+#   * Wed May  4 2016 George Hacker <ghacker@redhat.com>
+#   - changed print_SUCCESS calls to print_PASS in lab_grade
+#   * Thu Apr 21 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - updates the script to match the SG (SELinux)
+#   * Thu Apr 07 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="lab"
+fi
+
+working_dir="/home/student/${env}-task-control"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_task_file1=${working_dir}/install_packages.yml
+ansible_task_file2=${working_dir}/configure_web.yml
+ansible_task_file3=${working_dir}/configure_firewall.yml
+ansible_playbook_file=${working_dir}/playbook.yml
+ansible_user=devops
+ansible_target=serverb.lab.example.com
+ansible_target_httpd=/etc/httpd/conf.d
+ansible_pkgs=(httpd mod_ssl firewalld)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[webservers]
+${ansible_target}
+
+[files]
+${ansible_target}
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${ansible_target}
+  
+  print_header "Grading the student's work on ${control_node}:"
+  
+
+  pad " · Ensuring install_packages.yml is present"
+  if [[ -f ${ansible_task_file1} ]]; then
+    print_PASS
+    pad " · Ensuring configure_web.yml is present"
+    if [[ -f ${ansible_task_file2} ]]; then
+      print_PASS
+      pad " · Ensuring configure_firewall.yml is present"
+      if [[ -f ${ansible_task_file2} ]]; then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " · Ensuring Ansible playbook is present"
+  if [[ -f ${ansible_playbook_file} ]]; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  
+  print_header "Grading the student's work on ${ansible_target}:"
+  
+
+  print_line " · Checking packages"
+  
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} rpm -q --quiet "$i"; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+
+  print_line " · Ensuring services are started"
+  daemons=(httpd firewalld)
+  for i in "${daemons[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} systemctl is-active $i &>/dev/null; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+
+  print_line " · Checking SSL configuration files"
+  pad "   · Checking https.conf"
+  if ${ssh} ${ansible_target} "[[ -f ${ansible_target_httpd}/https.conf ]]"; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad "   · Checking the SSL directory"
+  if ${ssh} ${ansible_target} "[[ -d ${ansible_target_httpd}/ssl ]]"; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+
+  pad " · Ensuring the web server is reachable"
+  if curl --silent -k https://${ansible_target} | grep -q "by Ansible"; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}" mariadb-server; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  pad " · Removing index.html"
+  if ${ssh} ${ansible_target} "rm -rf ${ansible_index_file}" &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Removing custom configuration"
+  cmd1="rm -f ${ansible_target_httpd}/{ssl.conf.bak,https.conf}"
+  if ${ssh} ${ansible_target} "${cmd1}"; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+
+  pad " · Creating install_packages.yml"
+  cat > ${ansible_task_file1} << EOF
+---
+- name: Installs the required pakages
+  yum:
+    name: "{{ item }}"
+  with_items:
+    - "{{ web_package }}"
+    - "{{ ssl_package }}"
+  when:
+    - inventory_hostname in groups["webservers"]
+    - "{{ ansible_memory_mb.real.total }} > {{ memory }}"
+- name: Starts the service
+  service:
+    name: "{{ web_service }}"
+    state: started
+EOF
+  if [[ -f ${ansible_task_file1} ]]; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating configure_web.yml"
+cat > ${ansible_task_file2} << EOF
+---
+- shell:
+    rpm -q httpd
+  register: rpm_check
+  failed_when: rpm_check.rc == 1
+- block:
+  - get_url:
+      url: "{{ https_uri }}"
+      dest: /etc/httpd/conf.d/
+  - file:
+      path: /etc/httpd/conf.d/ssl
+      state: directory
+      mode: 0755
+  - file:
+      path: /var/www/html/logs
+      state: directory
+      mode: 0755
+  - stat:
+      path: /etc/httpd/conf.d/ssl.conf
+    register: ssl_file
+  - shell:
+      mv /etc/httpd/conf.d/ssl.conf /etc/httpd/conf.d/ssl.conf.bak
+    when: ssl_file.stat.exists
+  - unarchive:
+      src: "{{ ssl_uri }}"
+      dest: /etc/httpd/conf.d/ssl/
+      copy: no
+    notify:
+      - restart_services
+  - copy:
+      content: "{{ ansible_fqdn }} ({{ ansible_default_ipv4.address }}) has been customized by Ansible\n"
+      dest: /var/www/html/index.html
+  when: rpm_check.rc == 0
+EOF
+
+  if [[ -f ${ansible_task_file2} ]]; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating configure_firewall.yml"
+cat > ${ansible_task_file3} << EOF
+---
+- yum:
+    name: "{{ fw_service }}"
+    state: latest
+  tags: production
+
+- service:
+    name: "{{ fw_service }}"
+    state: started
+  tags: production
+
+- firewalld:
+    service: "{{ item }}"
+    immediate: True
+    permanent: True
+    state: enabled
+  with_items:
+    - http
+    - https
+  tags: production
+EOF
+  if [[ -f ${ansible_task_file3} ]]; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating ${ansible_playbook_file}"
+  cat > ${ansible_playbook_file} << EOF
+---
+- hosts: webservers
+  tasks:
+    - block:
+      - include: install_packages.yml
+        vars:
+          memory: 256
+          web_package: httpd
+          ssl_package: mod_ssl
+          web_service: httpd
+      - include: configure_web.yml
+        vars:
+          https_uri: http://materials.example.com/task_control/https.conf
+          ssl_uri: http://materials.example.com/task_control/ssl.tar.gz
+      - include: configure_firewall.yml
+        vars:
+          fw_package: firewalld
+          fw_service: firewalld
+        tags: production
+
+      rescue:
+      - yum:
+          name: httpd
+          state: latest
+        notify:
+          - restart_services
+
+      - debug:
+          msg: "Failed to import and run all the tasks; installing the web server manually"
+
+      always:
+      - shell:
+          cmd: "systemctl status httpd"
+
+  handlers:
+    - name: restart_services
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - httpd
+        - firewalld
+EOF
+  if [[ -f ${ansible_playbook_file} ]]; then
+    print_SUCCESS
+    chown -R student ${working_dir}
+    cd ${working_dir}
+    pad " · Running the playbook"
+    if ${runuser} "ansible-playbook ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+      pad " · Ensuring the web page is reachable"
+      if curl -k http://${ansible_target} &>/dev/null; then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

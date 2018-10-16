@@ -1,0 +1,26 @@
+---
+- name: Playbook for checking url            
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - block:
+    - name: Downloading file from given url
+      get_url:
+        url: http://classroom.example.com/pub/access.html
+        dest: /var/www/html
+
+
+    rescue:
+    - name: IF link's not accessible creating the file
+      copy:
+        dest: /var/www/html/noaccess.html
+        content: "I have no access."
+
+
+
+
+

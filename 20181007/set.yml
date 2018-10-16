@@ -1,0 +1,16 @@
+### to set hosts in inventory dynamically and delegate task to  the hosts
+
+---
+- hosts: all
+  tasks:
+  - name: Adding a host dynamically
+    add_host:
+      name: serverd
+      ansible_host: 172.25.250.13
+      ansible_user: devops
+
+  - debug:
+      msg: "Hello from serverd"
+    delegate_to: serverd      
+
+

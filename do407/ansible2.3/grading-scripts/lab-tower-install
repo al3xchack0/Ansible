@@ -1,0 +1,135 @@
+#!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# NAME
+#     lab-tower-install - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     lab-tower-install {setup|cleanup|solve}
+#
+#        setup   - prepare the system for starting the lab
+#        cleanup - perform post-lab cleanup
+#        solve   - do the lab exercise for the student (may call setup)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, 
+#     cleanup, or solve.
+#
+# CHANGELOG
+#   * Fri Mar 31 2017 Artur Glogowski <aglogows@redhat.com>
+#   - added IPA server installation playbook
+#   * Tue Feb 21 2017 Chen Chang <cchang@redhat.com>
+#   - change to use Ansible playbook
+#   * Fri Feb 17 2017 Chen Chang <cchang@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+target='tower'
+projectdir='/root/ansible/DO407'
+
+# This defines which subcommands are supported (setup, grade, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup cleanup solve)
+
+
+function lab_setup {
+
+  # Workstation setup
+  target='workstation'
+  print_header "Setting up ${target} for lab exercise work:"
+
+  pad " · Install Ansible and tower-cli on ${target}"
+  cmd1="yum install -y ansible python2-ansible-tower-cli"
+  if ${cmd1};
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Download Ansible project to ${target}"
+  projecturl='http://materials.example.com/classroom/ansible'
+  cmd1="wget -r -nH --cut-dirs=1 -np -R index.html* ${projecturl} -P /root"
+  if ${cmd1};
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Modify tower-cli host configuration'
+  tower-cli config host tower.lab.example.com
+
+  if [ $? -eq 0 ];
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Modify tower-cli username configuration'
+  tower-cli config username admin
+
+  if [ $? -eq 0 ];
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Modify tower-cli password configuration'
+  tower-cli config password redhat
+
+  if [ $? -eq 0 ];
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+
+function lab_cleanup {
+
+  print_header "Cleaning up the lab on ${target}:"
+  host_reachable ${target}
+
+  pad ' · Cleaning up.'
+  cmd1='true'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  print_line
+}
+
+
+function lab_solve {
+
+  lab_setup
+
+  print_header "Solving the lab on ${target}:"
+
+  pad ' · Install Ansible Tower'
+  cmd1="ansible-playbook -i ${projectdir}/inventories/admin/hosts ${projectdir}/tower.yml"
+  if ${cmd1};
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  print_line
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

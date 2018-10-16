@@ -1,0 +1,95 @@
+---
+- hosts: webservers,loadbalncer,monitoring,dbservers
+  serial: 5
+  tasks:
+  - name: Disable notifications 
+    nagios:
+      action: disable_alerts
+      host: "{{ item }}"
+      service: httpd
+    delegate_to: monitoring
+    with_items: group.webservers
+
+  - name: Removing servers from loadbalancer
+    haproxy:
+      state: disabled
+      backend: test_backend
+      host: "{{ item }}"
+    delegate_to: loadbalncer
+    with_items: group.webservers
+
+  - name: Stopping DB  servers
+    service:
+      name: mariadb
+      state: stopped
+      enabled: false
+    delegate_to: dbservers      
+
+  - name: Stopping webservers
+    service:
+      name: httpd
+      state: stopped
+      enabled: false
+    delegate_to: webservers 
+
+  - name: Performing full os upfrade
+    yum:
+      name: '*'
+      state: latest
+    delegate_to: webservers 
+    
+
+  - name: rebooting web servers
+    shell: reboot
+    delegate_to: webservers 
+  
+  - name: Checking webservers are up 
+    uri:
+      url: http://tower.lab.example.com
+    register: xyz
+
+  - debug:
+      var: xzy
+
+  - debug:
+      msg: web service is working fine
+    when: 'xyz.status == 200'            
+        
+
+  - name: Waiting for servers to be up n running
+    wait_for_connection:
+      sleep: 300
+
+  - name: Starting webservers
+    service:
+      name: httpd
+      state: started
+      enabled: true
+    delegate_to: webservers 
+
+  - name: Starting DB  servers
+    service:
+      name: mariadb
+      state: started
+      enabled: true  
+    delegate_to: dbservers      
+
+  - name: Adding servers from loadbalancer
+    haproxy:
+      state: enabled
+      backend: test_backend
+      host: "{{ item }}"
+    delegate_to: loadbalncer
+    with_items: group.webservers
+
+  - name: enable notifications 
+    nagios:
+      action: enable_alerts
+      host: "{{ item }}"
+      service: httpd
+    delegate_to: monitoring
+    with_items: group.webservers
+
+
+
+

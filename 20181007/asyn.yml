@@ -1,0 +1,10 @@
+### Asynchronous task example
+
+- hosts: all
+  tasks:
+  - name: Downloading a big file
+    get_url:
+      url: http://classroom.example.com/content/rhel7.0/x86_64/isos/rhel-server-7.0-x86_64-dvd.iso
+      dest: /var/tmp
+    async: 60
+    poll: 10

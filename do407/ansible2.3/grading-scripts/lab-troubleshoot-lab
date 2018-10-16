@@ -1,0 +1,281 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-troubleshoot-lab - grading script for DO407 Troubleshooting Ansible Lab (Chapter 10)
+#
+# SYNOPSIS
+#     lab-troubleshoot-lab {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script setup verb install the ansible package 
+#     in workstation and creates the working directory, 
+#     solves the lab, and grades it
+#
+# CHANGELOG
+#   * Tue Apr 19 2016 Adolfo Vazquez <avr@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/troubleshooting-lab/"
+ansible_config_file=ansible.cfg
+ansible_inventory_file=inventory-lab
+ansible_inventory_file_solution=inventory-lab-fixed
+ansible_playbook_file=secure-web.yml
+ansible_playbook_file_solution=secure-web.yml-fixed
+ansible_user=devops
+ansible_target=serverb.lab.example.com
+ansible_playbook_httpd_vhosts=vhosts.conf
+ansible_playbook_httpd_index=index.html
+LOG=/dev/null
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+  telnet_package='telnet'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " · Installing ${reqd_package} package on ${target}"
+    if yum -y install ansible &>/dev/null; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  fi
+
+  pad " · Creating the working directory"
+  mkdir -p ${working_dir}
+  chown -R student. ${working_dir}
+  print_SUCCESS
+
+  pad " · Removing web server packages on ${ansible_target}"
+  echo
+  if ${ssh} ${ansible_target} yum -y remove httpd &>/dev/null; then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_config_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_config_file} -O ${working_dir}/${ansible_config_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_inventory_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_inventory_file} -O ${working_dir}/${ansible_inventory_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_playbook_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_file} -O ${working_dir}/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_playbook_httpd_vhosts}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_httpd_vhosts} -O ${working_dir}/${ansible_playbook_httpd_vhosts} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating the html directory"
+  mkdir -p ${working_dir}/html
+  chown -R student. ${working_dir}/html
+  print_SUCCESS
+
+  pad " · Downloading ${ansible_playbook_httpd_index}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_httpd_index} -O ${working_dir}/html/${ansible_playbook_httpd_index} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Changing permissions to the working directory"
+  chown -R student. ${working_dir}
+  print_SUCCESS
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " · Configuring HTTPS access to ${ansible_target}"
+  if ${ssh} ${ansible_target} firewall-cmd --add-service https &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Checking HTTPS access to ${ansible_target}"
+  if curl -ks https://${ansible_target} | grep -i "This is a test page" &>/dev/null ; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " · Removing vhosts.conf on ${ansible_target}"
+  echo
+  if ${ssh} ${ansible_target} rm -rf /etc/httpd/conf.d/vhosts.conf &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+
+  pad " · Removing /var/www/vhosts/serverb-secure on ${ansible_target}"
+  echo
+  if ${ssh} ${ansible_target} rm -rf /var/www/vhosts/serverb-secure &>/dev/null; then
+      print_SUCCESS
+    else
+     	print_FAIL
+    fi
+
+  pad " · Removing web server certificate on ${ansible_target}"
+  echo
+  if ${ssh} ${ansible_target} rm -rf /etc/pki/tls/certs/serverb.lab.example.com.crt &>/dev/null; then
+      print_SUCCESS
+    else
+        print_FAIL
+    fi
+
+  pad " · Removing web server packages on ${ansible_target}"
+  echo
+  if ${ssh} ${ansible_target} yum -y remove httpd mod_ssl crypto-utils &>/dev/null; then
+      print_SUCCESS
+    else
+        print_FAIL
+    fi
+
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad " · Creating the lab working directory"
+  mkdir -p ${working_dir}/troubleshooting-lab
+  chown -R student. ${working_dir}/troubleshooting-lab
+  print_SUCCESS
+
+  pad " · Fixing ${ansible_playbook_file_solution}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_file_solution} -O ${working_dir}/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Fixing ${ansible_inventory_file_solution}"
+  if wget http://materials.example.com/troubleshooting/${ansible_inventory_file_solution} -O ${working_dir}/${ansible_inventory_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_playbook_httpd_vhosts}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_httpd_vhosts} -O ${working_dir}/${ansible_playbook_httpd_vhosts} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating the html directory"
+  mkdir -p ${working_dir}/html
+  chown -R student. ${working_dir}/html
+  print_SUCCESS
+
+  pad " · Downloading ${ansible_playbook_httpd_index}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_httpd_index} -O ${working_dir}/html/${ansible_playbook_httpd_index} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Executing ${ansible_playbook_file} playbook"
+  if ansible-playbook -i ${working_dir}/${ansible_inventory_file} ${working_dir}/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+function lab_reset {
+
+  host_reachable ${target}
+
+  lab_cleanup
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

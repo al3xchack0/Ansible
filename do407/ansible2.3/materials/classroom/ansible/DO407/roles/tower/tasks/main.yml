@@ -1,0 +1,7 @@
+---
+# tasks file for tower
+- include: gettower.yml
+- include: setpassword.yml
+- include: installtower.yml
+- include: polltower.yml
+- include: installtowerlicense.yml

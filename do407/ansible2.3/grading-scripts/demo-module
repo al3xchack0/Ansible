@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-module - demo script for DO407 module Ansible demo
+#
+# SYNOPSIS
+#     demo-module {setup|cleanup|reset}
+#
+#        setup   - create role as ~student on workstation
+#        cleanup - remove changes applied to servera
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to setup the managing Ansible demo.
+#
+# CHANGELOG
+#   * Wed May 18 2016 Chen Chang <cchang@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+
+lab_dir='/home/student/imp-moddemo'
+
+ansible_cfg="${lab_dir}/ansible.cfg"
+ansible_inventory="${lab_dir}/inventory"
+
+declare -a valid_commands=(setup cleanup reset)
+
+function lab_setup {
+
+  control_node=${targetw}
+  target=${targetw}
+
+  # Check for lab prerequisites (perhaps a required package?).
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+  else
+    if yum install -y ${reqd_package} &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  pad ' · Creating working directory'
+
+  cmd1="mkdir ${lab_dir}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible inventory'
+
+  file="${ansible_inventory}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible configuration'
+
+  file="${ansible_cfg}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+
+function lab_cleanup {
+
+  target=${targetw}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+  echo
+}
+
+function lab_reset {
+
+  target=${targetw}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+  pad ' · Remove demo directory'
+
+  file="${lab_dir}"
+  cmd1="rm -rf $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+
+}
+
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,27 @@
+### Playbook for creating file if it doesnt exists
+
+---
+- name: Playbook for creating file if it doesnt exists
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: serverb    
+  tasks:
+  - name: Checking if file exists
+    stat:
+      path: /etc/saveabort.txt
+    register: op
+
+  - name: Debugging op registered var.
+    debug:
+      var: op
+
+  - name: Creating the file if it doesnt exist
+    copy:
+      dest: /etc/saveabort.txt
+      content: "I am there"
+    when: 'op.stat.exists == false'
+      
+

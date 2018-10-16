@@ -1,0 +1,216 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-creating-roles - demo script for DO407 creating roles section
+#
+# SYNOPSIS
+#     demo-creating-roles {setup|cleanup|reset}
+#
+#        setup   - create role as ~student on workstation
+#        cleanup - remove changes applied to servera
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to setup the Ansible roles creation demo.
+#
+# CHANGELOG
+#   * Mon Apr 18 2016 George Hacker <ghacker@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+servera='servera'
+
+roles_dir='ansible-roles-demo'
+
+declare -a valid_commands=(setup cleanup reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+    if ! rpm -q --quiet tree
+    then
+      pad " · Installing tree package on ${control_node}"
+      if yum -y install tree &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+    fi
+    pad ' · Creating directory structure file'
+    cmd1="mkdir -p ${roles_dir}/roles/motd/{defaults,files,handlers,tasks,templates}"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+      pad ' · Creating inventory file'
+      cat << EOF > /tmp/tmpfile
+[servers]
+${servera}.lab.example.com
+EOF
+      cmd1="cat > ${roles_dir}/inventory"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating motd/tasks/main.yml file'
+      cat << EOF > /tmp/tmpfile
+---
+# tasks file for motd
+
+- name: deliver motd file
+  template:
+    src: templates/motd.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: 0444
+EOF
+      cmd1="cat > ${roles_dir}/roles/motd/tasks/main.yml"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating motd.j2 template'
+      cat << EOF > /tmp/tmpfile
+This is the system {{ ansible_hostname }}.
+
+Today's date is: {{ ansible_date_time.date }}.
+
+Only use this system with permission.
+You can ask {{ system_owner }} for access.
+EOF
+      cmd1="cat > ${roles_dir}/roles/motd/templates/motd.j2"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating motd defaults file'
+      cat << EOF > /tmp/tmpfile
+---
+system_owner: student@${control_node}.lab.example.com
+EOF
+      cmd1="cat > ${roles_dir}/roles/motd/defaults/main.yml"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating use-motd-role.yml playbook'
+      cat <<\EOF > /tmp/tmpfile
+---
+- name: use motd role playbook
+  hosts: servers
+  user: devops
+  become: true
+
+  pre_tasks:
+    - shell: echo 'Beginning MOTD customization'
+
+  roles:
+    - motd
+#   - { role: motd, system_owner: someone@workstation.lab.example.com }
+
+  post_tasks:
+    - shell: echo 'MOTD has been configured.'
+EOF
+      cmd1="cat > ${roles_dir}/use-motd-role.yml"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up after myvhost role on ${servera}:"
+  echo
+  host_reachable ${servera}
+
+  pad ' · Restoring /etc/motd to its original state'
+  cmd1='rm -f /etc/motd'
+  cmd2='yum -y reinstall setup'
+  if ${ssh} ${servera} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad ' · Removing the demo files'
+  cmd1="rm -rf ${roles_dir}/roles/motd"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  if rpm -q --quiet tree
+  then
+    pad ' · Removing tree package'
+    if yum -y erase tree &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,377 @@
+#!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# NAME
+#     lab-playbook - grading script for DO407 playbook practice
+#
+# SYNOPSIS
+#     lab-playbook {setup|grade|cleanup|solve|reset}
+#
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Wed Jul 12 2017 Artur Glogowski <aglogows@redhat.com>
+#   - solve part added
+#   * Tue Apr 12 16:51:14 EDT 2016 Chen Chang <cchang@redhat.com>
+#   - New script
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+
+labname=playbook
+
+lab_dir='/home/student/imp-playbook'
+ansible_cfg="${lab_dir}/ansible.cfg"
+ansible_inventory="${lab_dir}/inventory"
+playbook="${lab_dir}/intranet.yml"
+url='http://servera.lab.example.com'
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  target=${targetw}
+
+  reqd_package='ansible'        # Just an example
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${targeta}
+
+
+  # Check for lab prerequisites (perhaps a required package?).
+  pad ' · Verifying Ansible installation'
+
+  if ! ${ssh} ${target} "rpm -q --quiet ${reqd_package}"
+  then
+    if ${ssh} ${target} "yum install -y ${reqd_package}" &> /dev/null
+    then
+     print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_SUCCESS
+  fi
+
+  pad ' · Creating working directory'
+
+  cmd1="mkdir ${lab_dir}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible inventory'
+
+  file="${ansible_inventory}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible configuration'
+
+  file="${ansible_cfg}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_solve {
+
+  target=${targetw}
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad ' · Installing playbook on control node'
+
+  file="${playbook}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if runuser -l student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Executing playbook on control node'
+
+  file="${playbook}"
+  cmd1="cd ${lab_dir}; ansible-playbook ${playbook}"
+
+  if runuser -l student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+
+}
+
+function lab_grade {
+
+  target=${targeta}
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  # Put in the steps to grade the lab (use print_PASS or print_FAIL)
+  pad ' · Verify httpd package installation'
+
+  cmd1='rpm -q httpd'
+ 
+  if ${ssh} ${target} "${cmd1}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Verify firewalld package installation'
+
+  cmd1='rpm -q firewalld'
+ 
+  if ${ssh} ${target} "${cmd1}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Verify httpd service'
+
+  cmd1="systemctl is-enabled httpd"
+  cmd2="systemctl is-active httpd"
+  if ${ssh} ${target} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Verify firewalld service'
+
+  cmd1="systemctl is-enabled firewalld"
+  cmd2="systemctl is-active firewalld"
+  if ${ssh} ${target} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Verify firewalld configuration'
+
+  cmd1="firewall-cmd --list-services | grep -w http"
+  if ${ssh} ${target} "${cmd1}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Verify web site'
+
+  cmd1="curl http://servera.lab.example.com | grep '^Welcome to the example.com intranet!'"
+  if ${ssh} ${targetw} "${cmd1}" &> /dev/null
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  target=${targeta}
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+
+  pad " · Remove firewall configuration"
+
+  cmd1="firewall-cmd --remove-service http --permanent"
+  cmd1="firewall-cmd --reload"
+
+  ${ssh} ${target} "${cmd1} && ${cmd2}" &> /dev/null
+  print_SUCCESS
+
+
+  pad " · Remove web content"
+
+  cmd1="rm -f /var/www/index.html"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+
+
+  pad " · Remove httpd package"
+
+  cmd1="yum remove -y httpd"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+
+function lab_reset {
+
+  target=${targetw}
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+
+  pad " · Remove working directory"
+
+  cmd1="rm -rf ${lab_dir}"
+
+  ${ssh} ${target} "${cmd1}" &> /dev/null
+  print_SUCCESS
+
+
+  target=${targeta}
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+
+  pad " · Remove firewall configuration"
+
+  cmd1="firewall-cmd --remove-service http --permanent"
+  cmd2="firewall-cmd --reload"
+
+  ${ssh} ${target} "${cmd1} && ${cmd2}" &> /dev/null
+  print_SUCCESS
+
+
+  pad " · Remove web content"
+
+  cmd1="rm -f /var/www/index.html"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+
+
+  pad " · Remove httpd package"
+
+  cmd1="yum remove -y httpd"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+function lab_solve {
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad ' · Installing playbook on control node'
+
+  file="${playbook}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if runuser -l student -c "${ssh} ${targetw} \"${cmd1}\"" 
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Executing playbook on control node'
+
+  file="${playbook}"
+  cmd1="cd ${lab_dir}; ansible-playbook ${playbook}"
+
+  if runuser -l student -c "${ssh} ${targetw} \"${cmd1}\"" 
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,5 @@
+[ansible]
+name=Ansible Repository
+baseurl=http://content.example.com/ansible2.3/x86_64/dvd/2.3/
+gpgcheck=0
+

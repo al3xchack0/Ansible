@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-yaml - grading script for DO407 yaml practice
+#
+# SYNOPSIS
+#     lab-yaml {grade|cleanup|solve|reset}
+#
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Tue May 17 12:51:14 EDT 2016 Chen Chang <cchang@redhat.com>
+#   - Changes to accomodate new dir structure
+#   * Tue Apr 12 12:51:14 EDT 2016 Chen Chang <cchang@redhat.com>
+#   - New script
+
+#########################################################################
+#########################################################################
+#                   How to use this template:
+#
+# 1. Rename the file to lab-<something_related_to_your_lab>
+# 2. Adjust the comments above
+# 3. Modify the two functions, lab_setup and lab_grade to perform the
+#    steps you desire. All work is performed on workstation, so ssh and
+#    scp must be used to perform grading steps on remote host to be graded
+# 4. Remove these "How to use this template" comments
+#########################################################################
+#########################################################################
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+
+labname=yaml
+
+lab_dir='/home/student/imp-yaml'
+dict_yaml="${lab_dir}/dictionaries.yaml"
+num_yaml="${lab_dir}/numbers.yaml"
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+target=${targetw}
+
+function lab_setup {
+
+  reqd_package='ansible'        # Just an example
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+
+  # Check for lab prerequisites (perhaps a required package?).
+  pad ' . Verifying Ansible installation'
+
+  if ! ${ssh} ${target} "rpm -q --quiet ${reqd_package}"
+  then
+    if ${ssh} ${target} "yum install -y ${reqd_package}" &> /dev/null
+    then
+     print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_SUCCESS
+
+    echo
+  fi
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad ' . Creating working directory'
+
+  cmd1="mkdir ${lab_dir}"
+
+  if runuser -l student -c "${ssh} ${target} ${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' . Modifying dictionaries.yaml'
+
+  file="${dict_yaml}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if runuser -l student -c "${ssh} ${target} ${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' . Modifying dictionaries.yaml'
+
+  file="${num_yaml}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if runuser -l student -c "${ssh} ${target} ${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  # Put in the steps to grade the lab (use print_PASS or print_FAIL)
+  pad " . Required file dictionaries.yaml exists"
+
+  cmd1="test -f ${dict_yaml}"
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_PASS
+
+    pad ' . File contents pass syntax check'
+
+    cmd1="python -c 'import yaml, sys; print yaml.load(sys.stdin)' < ${dict_yaml}"
+    if su - student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+    then
+      print_PASS
+
+      pad ' . File contents pass data structure check'
+
+      cmd1="diff <(python -c 'import yaml, sys; print yaml.load(sys.stdin)' < ${dict_yaml}) <(curl http://materials.example.com/grading/python_output_dictionaries)"
+      if su - student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " . Required file numbers.yaml exists"
+
+  cmd1="test -f ${num_yaml}"
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_PASS
+
+    pad ' . File contents pass syntax check'
+
+    cmd1="python -c 'import yaml, sys; print yaml.load(sys.stdin)' < ${num_yaml}"
+    if su - student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+    then
+      print_PASS
+
+      pad ' . File contents pass data structure check'
+
+      cmd1="diff <(python -c 'import yaml, sys; print yaml.load(sys.stdin)' < ${num_yaml}) <(curl http://materials.example.com/grading/python_output_numbers)"
+      if su - student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  echo
+}
+
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Remove ${lab_dir}"
+
+  cmd1="rm -rf ${lab_dir}"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

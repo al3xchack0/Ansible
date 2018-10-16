@@ -1,0 +1,50 @@
+    1  vagrant 
+    2  vagrant init
+    3  ls
+    4  vim Vagrantfile
+    5  mkdir -p vagrant/webapp/
+    6  ls -ld vagrant/webapp/
+    7  cd vagrant/webapp/
+    8  cp /var/tmp/Vagrantfile .
+    9  ls
+   10  vim Vagrantfile 
+   11  vagrant up
+   12  vagrant ssh
+   13  vagrant status
+   14  vagrant destroy
+   15  vagrant ssh
+   16  vagrant up
+   17  cd /etc/yum.repos.d/
+   18  ls
+   19  vagrant ssh
+   20  cd -
+   21  vagrant ssh
+   22  vagrant destroy
+   23  mkdir /root/vagrant/webapp/etc/yum.repos.d
+   24  mkdir /root/vagrant/webapp/etc/yum.repos.d -p
+   25  cp /etc/yum.repos.d/rhel_dvd.repo /root/vagrant/webapp/etc/yum.repos.d/
+   26  ls 
+   27  ls etc/
+   28  ls etc/yum.repos.d/
+   29  ls etc/yum.repos.d/rhel_dvd.repo 
+   30  vim provisioner.sh
+   31  vim Vagrantfile 
+   32  vagrant up
+   33  vagrant ssh
+   34  vagrant destroy
+   35  pwd
+   36  vagrant status
+   37  cp /var/tmp/intranet-dev.yml .
+   38  ll
+   39  vim intranet-dev.yml 
+   40  vim Vagrantfile 
+   41  vagrant --help
+   42  vagrant validate      
+   43  vagrant up
+   44  yum install ansible -y
+   45  vim Vagrantfile 
+   46  vagrant validate
+   47  vagrant up
+   48  vagrant ssh
+   49  curl http://localhost:8080
+   50  history > histlist_tower.txt

@@ -1,0 +1,316 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-task-control-flowcontrol - grading script for DO407
+#
+# SYNOPSIS
+#     lab-task-control-flowcontrol {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for managing tasks flow.
+#
+# CHANGELOG
+#   * Tue May 17 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - lab_setup provides student with a working config and inventory
+#   - changed pkg parameter for yum module to name
+#   * Tue May  3 2016 George Hacker <ghacker@redhat.com>
+#   - removed code that checked for local my.cnf file
+#   - changed print_SUCCESS calls to print_PASS in lab_grade
+#   * Wed Apr 27 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - updates to match the book
+#   * Thu Apr 07 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/${env}-flowcontrol"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_task_file=${working_dir}/configure_database.yml
+ansible_playbook_file=${working_dir}/playbook.yml
+ansible_db_file=http://materials.example.com/task_control
+ansible_user=devops
+ansible_target=servera.lab.example.com
+ansible_pkgs=(mariadb-server mariadb-bench mariadb-libs mariadb-test)
+ansible_users=(db_user db_admin)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[databases]
+${ansible_target}
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+
+  pad " · Ensuring configure_database.yml is present"
+  if [[ -f ${ansible_task_file} ]]; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " · Ensuring Ansible playbook is present"
+  if [[ -f ${ansible_playbook_file} ]]; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+  echo "Grading the student's work on ${ansible_target}:"
+  echo
+
+  echo " · Checking packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} rpm -q --quiet "$i"; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+  echo " · Ensuring remote users have been created"
+  for i in "${ansible_users[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} id "$i" &>/dev/null; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+  pad  " · Ensuring my.cnf exists on ${ansible_target}"
+  if ${ssh} ${ansible_target} grep -q Ansible /etc/my.cnf &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  pad " · Removing my.cnf"
+  if ${ssh} ${ansible_target} rm -rf /etc/my.cnf &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo " · Removing users"
+  for i in "${ansible_users[@]}"; do
+    pad "   · Removing $i"
+    ${ssh} ${ansible_target} userdel -f "$i" &>/dev/null
+    retval=$?
+    # 0 = success, 6 = user not found (not an error for our purposes)
+    if [[ ${retval} -eq 0 || ${retval} -eq 6 ]]; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  cd ${working_dir}
+  pad " · Creating the playbook"
+  cat > ${ansible_playbook_file} << EOF
+---
+- hosts: all
+  vars:
+    db_package: mariadb-server
+    db_service: mariadb
+    db_users:
+      - db_admin
+      - db_user
+    configure_database_path: /etc/my.cnf
+
+  tasks:
+  - name: Create the MariaDB users
+    user:
+      name: "{{ item }}"
+    with_items: "{{ db_users }}"
+    when: inventory_hostname in groups['databases']
+
+  - name: Install the database server
+    yum:
+      name: "{{ db_package }}"
+    when: db_package is defined
+
+  - name: Configure the database software
+    include: configure_database.yml
+    vars:
+      extra_packages:
+        - mariadb-bench
+        - mariadb-libs
+        - mariadb-test
+    when: configure_database_path is defined
+EOF
+  print_SUCCESS
+
+  pad " · Creating configure_database.yml"
+  cat > ${ansible_task_file} << EOF
+---
+- yum:
+    name: "{{ extra_packages }}"
+
+- get_url:
+    url: "http://materials.example.com/task_control/my.cnf"
+    dest: "{{ configure_database_path }}"
+    owner: mysql
+    group: mysql
+    mode: 0644
+    seuser: system_u
+    setype: mysqld_etc_t
+    force: yes
+
+- service:
+    name: "{{ db_service}}"
+    state: started
+    enabled: true
+EOF
+
+  if [[ -f ${ansible_task_file} ]]; then
+    print_SUCCESS
+
+    chown -R student ${working_dir}
+    cd ${working_dir}
+
+    pad " · Running the playbook"
+    if ${runuser} "ansible-playbook ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,280 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-puppet-devops-practice - setup script for DO407 DevOps
+#                                  chapter with Vagrant
+#
+# SYNOPSIS
+#     lab-puppet-devops-practice {setup|solve|reset}
+#
+# DESCRIPTION
+#     This setup script does the following:
+#        1. Create a Git repo with a webapp project
+#        2. Configure SSH keys on the Vagrant control host
+#           a. Access to student@git-server
+#           b. Access to devops@prod-server
+#        3. Configure SSH keys on the production server
+#           a. Access to student@git-server
+#
+# CHANGELOG
+#   * Thu May 26 2016 Chen Chang <cchang@redhat.com>
+#   - Fixed groupdel issue
+#   * Fri Apr 29 2016 George Hacker <ghacker@redhat.com>
+#   - adapted the code from lab-puppet-vagrant-practice to work with Ansible
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+
+declare -a valid_commands=(setup solve reset)
+
+function lab_setup {
+
+  host_reachable ${gitserver}
+  host_reachable ${vagrantserver}
+# host_reachable ${prodserver}
+
+  cmd1='rpm -q vagrant'
+  cmd2="[[ -d vagrant/${project} ]]"
+  if ! ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    fatal 1 'The previous lab exercise must be completed before starting this one.'
+  fi
+
+  echo
+  echo "Setting up ${gitserver} for lab exercise work:"
+  echo
+
+  setup_gitrepo
+  restore_gitprojects
+
+  echo
+  echo "Setting up ${vagrantserver} for lab exercise work:"
+  echo
+
+# pad ' · Opening firewall port 8000'
+# cmd1='firewall-cmd --add-port=8000/tcp'
+# cmd2="${cmd1} --permanent"
+# if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  pad ' · Downloading Ansible playbook'
+  cmd1="curl -s -f -o /var/tmp/intranet-dev.yml http://materials.example.com/vagrant/intranet-dev.yml"
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  config_gituser root@${vagrantserver}
+  config_ssh_access root@${vagrantserver} ${gituser}@${gitserver}
+# config_ssh_access root@${vagrantserver} devops@${prodserver}
+
+# echo
+# echo "Setting up ${prodserver} for lab exercise work:"
+# echo
+#
+# config_gituser root@${prodserver}
+# config_ssh_access root@${prodserver} ${gituser}@${gitserver}
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${vagrantserver}:"
+  echo
+
+  cmd1="grep -q 'config.vm.provision \"ansible\"' /root/vagrant/${project}/Vagrantfile"
+  if ! ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Updating Vagrantfile to use Ansible provisioner'
+    prov_string='\ \ config.vm.provision "ansible" do |ansible|\n\ \ \ \ ansible.playbook = "intranet-dev.yml"\n\ \ end'
+    cmd1="sed -i -e '/# Define ansible provisioner/a ${prov_string}' /root/vagrant/${project}/Vagrantfile"
+    cmd2="mv -f /var/tmp/intranet-dev.yml /root/vagrant/${project}/intranet-dev.yml"
+    if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1="grep -q 'config.vm.network' /root/vagrant/${project}/Vagrantfile"
+  if ! ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Updating Vagrantfile network settings'
+    prov_string='\ \ config.vm.network :forwarded_port, guest: 80, host: 8000'
+    cmd1="sed -i -e '/config.vm.hostname/a ${prov_string}' /root/vagrant/${project}/Vagrantfile"
+    if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1='rpm -q ansible'
+  if ! ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Installing Ansible'
+    if ${ssh} ${vagrantserver} 'yum -y install ansible' &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  host_reachable ${vagrantserver}
+  host_reachable ${gitserver}
+# host_reachable ${prodserver}
+
+  echo
+  echo "Resetting the lab on ${gitserver}:"
+  echo
+
+  cmd1="[[ -d ${repo_dir} ]]"
+  if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Removing git directory'
+    cmd1="rm -rf ${repo_dir}"
+    if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1='getent group git'
+  if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Removing the git system group'
+    cmd1='groupdel git'
+    if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1='rpm -q git'
+  if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Remove the git software'
+    if ${ssh} ${gitserver} 'yum -y erase git' &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+  echo "Resetting the lab on ${vagrantserver}:"
+  echo
+
+# pad ' · Closing firewall port 8000'
+# cmd1='firewall-cmd --remove-port=8000/tcp'
+# cmd2="${cmd1} --permanent"
+# if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  pad ' · Removing Vagrantfile changes'
+  sed_cmd1='/config.vm.provision "ansible"/,/end/d'
+  sed_cmd2='/config.vm.network/d'
+  cmd1="sed -i -e '${sed_cmd1}' -e '${sed_cmd2}' /root/vagrant/${project}/Vagrantfile"
+  cmd2="rm -f /root/vagrant/${project}/intranet-dev.yml /var/tmp/intranet-dev.yml"
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  cmd1='rpm -q git'
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Remove the git software'
+    if ${ssh} ${vagrantserver} 'yum -y erase git; rm -f ~/.gitconfig' &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1='[[ -f ~/.ssh/id_rsa ]]'
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Removing SSH keys'
+    cmd1='rm -f ~/.ssh/id_rsa ~/.ssh/id_rsa.pub'
+    if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+# echo
+# echo "Resetting the lab on ${prodserver}:"
+# echo
+#
+# cmd1='rpm -q git'
+# if ${ssh} ${prodserver} "${cmd1}" &> /dev/null
+# then
+#   pad ' · Remove the git software'
+#   if ${ssh} ${prodserver} 'yum -y erase git; rm -f ~/.gitconfig' &> /dev/null
+#   then
+#     print_SUCCESS
+#   else
+#     print_FAIL
+#   fi
+# fi
+# cmd1='[[ -f ~/.ssh/id_rsa ]]'
+# if ${ssh} ${prodserver} "${cmd1}" &> /dev/null
+# then
+#   pad ' · Removing SSH keys'
+#   cmd1='rm -f ~/.ssh/id_rsa ~/.ssh/id_rsa.pub'
+#   if ${ssh} ${prodserver} "${cmd1}" &> /dev/null
+#   then
+#     print_SUCCESS
+#   else
+#     print_FAIL
+#   fi
+# fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,321 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-managing-variables-facts - grading script for DO407
+#
+# SYNOPSIS
+#     lab-managing-variables-facts {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for managing variable facts.
+#
+# CHANGELOG
+#   * Wed Jun  8 2016 Chen Chang <cchang@redhat.com>
+#   - Hide warning message
+#   * Mon May 16 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - lab_setup provides student with a working config and inventory
+#   - changed pkg parameter for yum module to name
+#   * Tue May  3 2016 George Hacker <ghacker@redhat.com>
+#   - changed state of service from 'running' to 'started'
+#   * Wed Mar 30 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/${env}-vars-facts"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_playbook_file=${working_dir}/playbook.yml
+ansible_facts_playbook_file=${working_dir}/setup_facts.yml
+ansible_local_fact_file=${working_dir}/custom.fact
+ansible_remote_fact_file=/etc/ansible/facts.d/custom.fact
+ansible_user=devops
+ansible_target=servera.lab.example.com
+ansible_pkgs=(httpd)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[webserver]
+${ansible_target}
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+
+  pad " · Ensuring Ansible facts playbook is present"
+  if stat ${ansible_facts_playbook_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad " · Ensuring Ansible playbook is present"
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad " · Ensuring Ansible custom facts file is present"
+  if stat ${ansible_local_fact_file} &>/dev/null; then
+    print_PASS
+    pad " · Ensuring facts have been installed"
+    if ${ssh} ${ansible_target} stat ${ansible_remote_fact_file} &>/dev/null; then
+      print_PASS
+      pad " · Ensuring package name can be queried"
+      cd ${working_dir}
+      if ansible webserver -m setup | grep -q package.*httpd &> /dev/null; then
+        print_PASS
+      else
+        print_FAIL
+      fi
+      pad " · Ensuring service name can be queried"
+      if ansible webserver -m setup | grep -q 'state.*started'; then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+  echo "Grading the student's work on ${ansible_target}:"
+  echo
+
+  echo " · Checking packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} rpm -q --quiet "$i"; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo " · Ensuring services are started"
+  pad "   · Checking ${ansible_pkgs[0]}"
+  if ${ssh} ${ansible_target} systemctl is-active ${ansible_pkgs[0]} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  pad " · Removing custom facts"
+  if ${ssh} ${ansible_target} rm -rf ${ansible_remote_fact_file} &>/dev/null; then
+      print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  pad " · Creating ${ansible_local_fact_file}"
+  cat > ${ansible_local_fact_file} << EOF
+[general]
+package = httpd
+service = httpd
+state = started
+EOF
+  if stat ${ansible_local_fact_file} &>/dev/null; then
+    print_SUCCESS
+    pad  " · Creating ${ansible_facts_playbook_file}"
+     cat > ${ansible_facts_playbook_file} << EOF
+---
+- name: Install remote facts
+  hosts: webserver
+  vars:
+    remote_dir: /etc/ansible/facts.d
+    facts_file: custom.fact
+  tasks:
+    - name: Create the remote directory
+      file:
+        state: directory
+        recurse: yes
+        path: "{{ remote_dir }}"
+    - name: Install the new facts
+      copy:
+        src: "{{ facts_file }}"
+        dest: "{{ remote_dir }}"
+EOF
+    if stat ${ansible_facts_playbook_file} &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating ${ansible_playbook_file}"
+  cat > ${ansible_playbook_file} << EOF
+---
+- name: Install Apache and start the service
+  hosts: webserver
+  vars:
+    service: httpd
+
+  tasks:
+    - name: Install the required package
+      yum:
+        name: "{{ ansible_local.custom.general.package }}"
+        state: latest
+
+    - name: Start the service
+      service:
+        name: "{{ ansible_local.custom.general.service }}"
+        state: "{{ ansible_local.custom.general.state }}"
+EOF
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  chown -R student ${working_dir}
+
+  pad " · Running ${ansible_facts_playbook_file}"
+  cd ${working_dir}
+  if ansible-playbook -i ${ansible_hst_file} ${ansible_facts_playbook_file} &>/dev/null; then
+    print_SUCCESS
+    pad " · Running ${ansible_playbook_file}"
+    if ansible-playbook -i ${ansible_hst_file} ${ansible_playbook_file} &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

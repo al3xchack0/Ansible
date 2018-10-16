@@ -1,0 +1,161 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-vagrant-practice - setup script for DO407 DevOps
+#                                    chapter with Vagrant
+#
+# SYNOPSIS
+#     lab-ansible-vagrant-practice {setup|solve|reset}
+#
+# DESCRIPTION
+#     This script installs the Vagrant software and its dependencies.
+#     It enables and starts libvirtd. It also extracts a prepopulated
+#     Vagrant metadata directory needed for a working Vagrant environment.
+#
+# CHANGELOG
+#   * Fri Apr 29 2016 George Hacker <ghacker@redhat.com>
+#   - adapted the code from lab-puppet-devops-practice to work with Ansible
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+
+declare -a valid_commands=(setup solve reset)
+
+function lab_setup {
+
+  echo
+  echo "Setting up ${vagrantserver} for lab exercise work:"
+  echo
+  host_reachable ${vagrantserver}
+
+  cmd1='rpm -q tree'
+  if ! ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Install the tree package'
+    if ${ssh} ${vagrantserver} 'yum -y install tree' &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  setup_vagrant
+
+  pad ' · Downloading initial Vagrantfile'
+  cmd1='curl -s -f -o /var/tmp/Vagrantfile http://materials.example.com/vagrant/Vagrantfile'
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  # Do *not* install Ansible. Students will do it in the exercise.
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${vagrantserver}:"
+  echo
+
+  pad " · Creating the vagrant/${project} directory"
+  cmd1="mkdir -p /root/vagrant/${project}/etc/yum.repos.d"
+  cmd2="mv /var/tmp/Vagrantfile vagrant/${project}/"
+  if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Installing Yum repository file'
+  cmd1="cp /etc/yum.repos.d/rhel_dvd.repo /root/vagrant/${project}/etc/yum.repos.d/"
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating provisioner.sh file'
+  cat << EOF > /tmp/tmpfile
+#!/bin/bash
+
+# Install yum config file
+sudo cp /home/vagrant/sync/etc/yum.repos.d/rhel_dvd.repo /etc/yum.repos.d/
+EOF
+  cmd1="cat > /root/vagrant/${project}/provisioner.sh"
+  if cat /tmp/tmpfile | ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  rm -f /tmp/tmpfile
+
+  pad ' · Updating Vagrantfile to use provisioner.sh'
+  prov_string='\ \ config.vm.provision "shell", path: "provisioner.sh"'
+  cmd1="sed -i -e '/# Define shell provisioner/a ${prov_string}' /root/vagrant/${project}/Vagrantfile"
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${vagrantserver}:"
+  echo
+
+  pad ' · Disabling virtualization support'
+  cmd1='systemctl disable libvirtd'
+  cmd2='systemctl stop libvirtd'
+  if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  pad ' · Removing Vagrant and virtualization packages'
+  cmd1='yum -y erase tree ansible libvirt libvirt-devel qemu-kvm vagrant ruby-devel'
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  pad ' · Removing the lab files'
+  cmd1="rm -rf .vagrant.d vagrant /var/tmp/Vagrantfile ${vagrant_yum_repo}"
+  if ${ssh} ${vagrantserver} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

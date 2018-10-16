@@ -1,0 +1,46 @@
+#!/bin/bash
+echo "                                                      "
+echo "                                                      "
+echo "                                                      "
+echo "                                                      "
+
+
+echo "###########RUNNING ANSIBLE EXAM ENV. SETUP############"
+yum repolist &> /dev/null
+yum install ansible -y &> /dev/null
+#grep -A4  privilege /etc/ansible/ansible.cfg | sed -e 's/#//' >> /etc/ansible/ansible.cfg
+#sed -i '149s/"install",//'  /usr/lib/python2.7/site-packages/ansible/cli/galaxy.py
+mkdir -p /opt/ansible/dynamic/inventory  /home/student/playbooks
+chown student:student /home/student/playbooks /etc/ansible/roles
+echo "servera
+serverb
+serverc
+serverd
+172.25.250.9 
+172.25.250.10
+172.25.250.11
+172.25.250.12
+[majori]
+servera
+serverc
+[bunnies]
+serverb
+serverd
+[newbunnies]
+tower
+[servers:children]
+webservers
+" > /opt/ansible/dynamic/inventory/hosts
+
+wget -O /opt/ansible/dynamic/inventory/rabbitsa.py  http://classroom.example.com/materials/dynamic/inventorya.py &> /dev/null
+wget -O /opt/ansible/dynamic/inventory/rabbitsb.py  http://classroom.example.com/materials/dynamic/inventoryw.py &> /dev/null
+
+
+echo -e "#!/bin/bash\n echo "Hello world" " > /usr/local/bin/runme.sh
+
+echo "                                                      "
+echo "                                                      "
+echo "                                                      "
+echo "                                                      "
+echo "                                                      "
+echo "############ EXAM SETUP IS READY  !!! GET STARTED ###################"

@@ -1,0 +1,23 @@
+---
+- hosts: servera,workstation
+  tasks:
+  - name: Getting process info of servera
+    shell: ps -ef
+    register: ps_a
+    #when: inventory_hostname in ['servera']
+    delegate_to: servera
+
+
+  - debug:
+      var: ps_a.stdout_lines
+    delegate_to: servera            
+
+
+  - shell: ps -ef
+    register: ps_local
+    delegate_to: localhost
+
+
+  - debug:
+      var: ps_local.stdout_lines
+    delegate_to: localhost

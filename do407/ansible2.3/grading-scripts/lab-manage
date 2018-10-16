@@ -1,0 +1,220 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-manage - grading script for DO407 manage practice
+#
+# SYNOPSIS
+#     lab-manage {setup|grade|cleanup|solve|reset}
+#
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Mon May 16 2016 Chen Chang <cchang@redhat.com>
+#   - Changes to accomodate new directory structure.
+#   * Mon May  2 2016 George Hacker <ghacker@redhat.com>
+#   - Changed print_SUCCESS to print_PASS in lab_grade function
+#   * Sun Apr  3 12:51:14 EDT 2016 Chen Chang <cchang@redhat.com>
+#   - New script
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+
+labname=manage
+
+lab_dir='/home/student/dep-manage'
+student_ansible_cfg="${lab_dir}/ansible.cfg"
+student_ansible_hosts="${lab_dir}/inventory"
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup solve grade cleanup reset)
+
+
+function lab_setup {
+
+  control_node=${targetw}
+
+  # Check for lab prerequisites (perhaps a required package?).
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+  else
+    if yum install -y ${reqd_package} &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+}
+
+function lab_solve {
+
+  target=${targetw}
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+
+  pad ' · Creating Ansible directory'
+
+  cmd1="mkdir ${lab_dir}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating Ansible inventory file'
+
+  file="${student_ansible_hosts}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Creating Ansible configuration file'
+
+  file="${student_ansible_cfg}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+
+}
+
+function lab_grade {
+
+  target=${targetw}
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+  # Put in the steps to grade the lab (use print_PASS or print_FAIL)
+
+
+  for inv_group in myself intranetweb everyone; do 
+
+    pad " · Verify $inv_group inventory group"
+  
+    cmd1="diff <(ansible -i ${student_ansible_hosts} $inv_group --list) <(curl http://materials.example.com/grading/inventory_output_${inv_group})"
+    
+    if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+    then
+      print_PASS
+    else
+      print_FAIL
+    fi
+
+  done
+
+
+  pad " · Verify active configuration file"
+
+  cmd1="cd ${lab_dir}; ansible --version -v 2>&1 | awk -F' = ' '/config file/{print \\\$2}'"
+  active_ansible_cfg=$(su - student -c "${ssh} ${target} \"${cmd1}\"")
+
+  if [[ "${active_ansible_cfg}" == "${student_ansible_cfg}" ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  target=${targetw}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+  echo
+}
+
+
+function lab_reset {
+
+  target=${targetw}
+
+  echo
+  echo "Resetting the lab on ${targetw}:"
+  echo
+
+
+  pad ' · Remove exercise directory'
+
+  file="${lab_dir}"
+  cmd1="rm -rf $file"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,364 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-vagrant-lab - grading script for DO407 DevOps
+#                               chapter with Vagrant
+#
+# SYNOPSIS
+#     lab-ansible-vagrant-lab {setup|grade|solve|reset}
+#
+#        setup   - sets up a Git repo and project on serverc, sets up
+#                  Vagrant environment on serverb, and configures firewall
+#                  rules for web services on servera
+#        grade   - confirms updated web source is committed into Git
+#                  repo on serverc, verifies local Git repository on serverb,
+#                  and confirms Puppet installation, web service configuration,
+#                  and web app deployment on servera
+#        solve   - install and  configure Git, clone an update webapp on serverb,
+#                  install and configure Puppet client and apply
+#                  node configuration and update web source on servera.
+#        reset   - uninstall libvirt, vagrant, git packages and remove
+#                  Git and Vagrant configuration on serverb, remove Puppet and its
+#                  configuration, web source, and firewall configuration on serverb,
+#                  remove Puppet master and its configuration, firewall configuration,
+#                  Git software, configuration, and repository on servec
+#
+# DESCRIPTION
+#     This script sets up a Git repo on workstation and then restores
+#     a couple Git projects to it.
+#
+#     On serverb, this script installs the Vagrant software and its
+#     dependencies. It enables and starts libvirtd.
+#
+#     This script applies the necessary firewall settings for web services
+#     to be hosted on servera.
+#
+# CHANGELOG
+#   * Thu May 26 2016 Chen Chang <cchang@redhat.com>
+#   - remove lab_solve functionality
+#   * Thu May  5 2016 George Hacker <ghacker@redhat.com>
+#   - added lab_grade functionality
+#   * Mon May  2 2016 George Hacker <ghacker@redhat.com>
+#   - adapted the code from lab-puppet-vagrant-lab to work with Ansible
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+
+declare -a valid_commands=(setup grade reset)
+
+function lab_setup {
+
+  host_reachable ${gitserver}
+  host_reachable ${vagrantserver}
+  host_reachable ${prodserver}
+
+  echo
+  echo "Setting up ${gitserver} for lab exercise work:"
+  echo
+
+  setup_gitrepo
+  restore_gitprojects
+
+  echo
+  echo "Setting up ${vagrantserver} for lab exercise work:"
+  echo
+
+  setup_vagrant
+  config_gituser root@${vagrantserver}
+  config_ssh_access root@${vagrantserver} ${gituser}@${gitserver}
+  config_ssh_access root@${vagrantserver} devops@${prodserver}
+
+  echo
+  echo "Setting up ${prodserver} for lab exercise work:"
+  echo
+
+  config_gituser root@${prodserver}
+  config_ssh_access root@${prodserver} ${gituser}@${gitserver}
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${vagrantserver}
+  host_reachable ${gitserver}
+  host_reachable ${prodserver}
+
+  target="${gitserver}"
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+  pad ' · Web app index.html updated'
+  cmd1="cd ${repo_dir}/${project}.git; git show HEAD:index.html"
+  if webapp_content="$(${ssh} ${target} "${cmd1}")" &&
+     echo -- "${webapp_content}" | grep -q "Welcome to Web App 2.0"
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  target="$vagrantserver"
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+# pad ' · Package git installed'
+# cmd1="rpm -q git &> /dev/null"
+# if ${ssh} ${target} "${cmd1}" 2> /dev/null
+# then
+#   print_PASS
+# else
+#   print_FAIL
+# fi
+
+  pad ' · Project directory cloned'
+  cmd1="cd /root/vagrant/webapp && git remote -v | head -1"
+  if git_remote_output="$(${ssh} ${target} "${cmd1}")" &&
+     echo -- "${git_remote_output}" |
+     egrep -q "origin[[:space:]]*(.*@)?${gitserver}(\.lab\.example\.com)?:${repo_dir}/vagrantwebapp.git "
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  target="${prodserver}"
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+  pad ' · Package httpd installed'
+  cmd1="rpm -q httpd"
+  if ${ssh} ${target} "${cmd1}"
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Service httpd enabled'
+  cmd1="systemctl is-enabled httpd"
+  if ${ssh} ${target} "${cmd1}"
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Service httpd running'
+  cmd1="systemctl is-active httpd"
+  if ${ssh} ${target} "${cmd1}"
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Production web app updated'
+  cmd1="curl http://servera:80"
+  if prod_web_app="$(${ssh} ${target} "${cmd1}")" &&
+     echo -- "${prod_web_app}" | grep -q "Welcome to Web App 2.0"
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  echo
+}
+
+# This function needs to be fixed.
+# Currently it is checking out the wrong repo.
+# Should be checking out vagrantwebapp repo.
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  target="${vagrantserver}"
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+# pad ' · Installing git'
+# cmd1="yum install -y git"
+# cmd2="git config --global user.name 'Student User'"
+# cmd3="git config --global user.email 'root@${vagrantserver}.lab.example.com'"
+# if ${ssh} ${target} "${cmd1} && ${cmd2} && ${cmd3}"
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+# pad ' · Preparing for communication with git repo'
+# cmd1="rsync -avz -e 'ssh -o StrictHostKeyChecking=no -i /root/.ssh/lab_rsa' /root/.ssh/lab_rsa $target:/root/.ssh/"
+# rsync -avz -e 'ssh -o StrictHostKeyChecking=no -i /root/.ssh/lab_rsa' /root/.ssh/lab_rsa serverb:/root/.ssh/
+# if [ $? -eq 0 ]
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+# pad ' · Preparing for authentication with git repo'
+# cmd1="ln -sf /root/.ssh/lab_rsa /root/.ssh/id_rsa"
+# if ${ssh} ${target} "${cmd1}"
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  pad ' · Cloning webapp git project'
+  cmd1="mkdir /root/vagrant"
+  cmd2="cd /root/vagrant"
+  cmd3="git clone $gitserver:$repo_dir/$project.git"
+  if ${ssh} ${target} "${cmd1} && ${cmd2} && ${cmd3}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Updating web app'
+  cmd1="cd /root/vagrant/webapp"
+  cmd2="echo 'Welcome to Web App 2.0' > index.html"
+  cmd3="git add index.html"
+  cmd4="git commit -m 'Update web app to version 2.0'"
+  cmd5="git push origin master"
+  if ${ssh} ${target} "${cmd1} && ${cmd2} && ${cmd3} && ${cmd4} && ${cmd5}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Applying Ansible playbook to production server'
+  cmd1="cd /root/vagrant/webapp"
+  cmd2='ansible-playbook intranet-prod.yml'
+  if ${ssh} ${target} "${cmd1} && ${cmd2}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+# pad ' · Cleaning up authentication with git repo'
+# cmd1="rm -f /root/.ssh/lab_rsa /root/.ssh/id_rsa"
+# if ${ssh} ${target} "${cmd1}"
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  echo
+}
+
+function lab_reset {
+
+  host_reachable ${vagrantserver}
+  host_reachable ${gitserver}
+  host_reachable ${prodserver}
+
+  target="${vagrantserver}"
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+
+  pad ' · Removing Ruby libraries and development'
+  cmd1='yum erase -q -y ruby ruby-libs ruby-devel'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing virtualization support'
+  cmd1='yum erase -q -y libvirt libvirt-devel qemu-kvm'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing Vagrant software'
+  cmd1='yum erase -q -y vagrant'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing git software'
+  cmd1='yum erase -q -y git'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing vagrant meta directory'
+  cmd1='rm -rf /root/.vagrant.d'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing git configuration'
+  cmd1='rm -rf /root/.gitconfig'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing vagrant working directory'
+  cmd1='rm -rf /root/vagrant'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  target="${gitserver}"
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+
+  pad ' · Removing git directory'
+  cmd1="rm -rf $repo_dir"
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing git group'
+  cmd1="groupdel git"
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Removing git'
+  cmd1='yum erase -q -y git'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  target="${prodserver}"
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+
+  pad ' · Removing index.html'
+  cmd1='rm -f /var/www/html/index.html'
+  ${ssh} ${target} "${cmd1}"
+  print_SUCCESS
+
+  pad ' · Configuring firewalld'
+  cmd1='firewall-cmd --delete-service http --permanent'
+  cmd2='firewall-cmd --reload'
+  print_SUCCESS
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

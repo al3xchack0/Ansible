@@ -1,0 +1,268 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-configure-delegation - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     lab-configure-delegation {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for lab-configure-delegation.
+#
+# CHANGELOG
+#   * Tue Jul 11 2017 Artur Glogowski <aglogows@redhat.com>
+#   - moved from workstation to serverc
+#   * Thu Jun 22 2017 Artur Glogowski <aglogows@redhat.com>
+#   - changed to run as root
+#   - fixed cleanup and reset - it doesn't remove httpd from workstation 
+#   * Mon Apr 19 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/configure-delegation
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory/hosts
+ansible_user=devops
+ansible_target=servera.lab.example.com
+ansible_target2=serverc.lab.example.com
+#ansible_pkgs=(httpd firewalld python-httplib2)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+#declare -a valid_commands=(setup grade cleanup solve reset)
+declare -a valid_commands=(setup cleanup reset)
+
+function lab_setup {
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+  host_reachable ${ansible_target}
+  host_reachable ${ansible_target2}
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    echo "student" | sudo -S yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir} &>/dev/null"
+  ${runuser} "mkdir ${working_dir}/inventory &>/dev/null"
+  ${runuser} "mkdir ${working_dir}/templates &>/dev/null"
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Copying the template files"
+  ${runuser} "curl -s http://materials.example.com/playbooks/templates/servera.lab.example.com-httpd.conf.j2 -o ${working_dir}/servera.lab.example.com-httpd.conf.j2"
+  ${runuser} "curl -s http://materials.example.com/playbooks/templates/serverc.lab.example.com-httpd.conf.j2 -o ${working_dir}/serverc.lab.example.com-httpd.conf.j2"
+  if stat ${working_dir}/servera.lab.example.com-httpd.conf.j2 &>/dev/null && stat ${working_dir}/serverc.lab.example.com-httpd.conf.j2 &>/dev/null; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  echo
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  if curl -s http://serverc.lab.example.com/external | grep servera.lab.example.com &>/dev/null; then
+    if [ ! -d ${working_dir} ];then
+      ${runuser} "mkdir -p ${working_dir}/inventory"
+    fi  
+    ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+    ${runuser} "cat > ${ansible_hst_file} << EOF
+[webservers]
+servera.lab.example.com
+
+[proxyservers]
+serverc.lab.example.com
+EOF"
+    ${runuser} "cat > ${working_dir}/undoing-delegation.yml <<EOF
+---
+- name: Uninstall httpd
+  hosts: all 
+  remote_user: devops
+  become: true
+  tasks:
+
+     - name: Stop and disable httpd
+       service:   
+           name: httpd
+           state: stopped
+           enabled: no
+#       when: inventory_hostname in groups['webservers']
+
+     - name: Install httpd
+       yum:
+          name: httpd
+          state: absent
+#       when: inventory_hostname in groups['webservers']
+
+     - name: Disable firewall
+       firewalld: zone=public service=http permanent=true state=disabled immediate=true
+#       when: inventory_hostname in groups['webservers']
+
+     - name: Removing file
+       file: name=/var/www/html/index.html state=absent
+EOF"
+    cd ${working_dir}
+    if ansible-playbook undoing-delegation.yml &>/dev/null;then
+        print_SUCCESS
+        rm -rf ${working_dir}/undoing-delegation.yml &>/dev/null
+    else
+      print_FAIL
+    fi
+  else
+    print_SUCCESS
+  fi
+   rm -rf ${working_dir}/undoing-delegation.yml &>/dev/null
+  echo
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+ 
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+  pad " . Undoing the playbook tasks"
+  if curl -s http://serverc.lab.example.com/external | grep servera.lab.example.com 2>/dev/null; then
+    if [ ! -d ${working_dir} ];then
+      ${runuser} "mkdir -p ${working_dir}/inventory"
+    fi  
+    ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+    ${runuser} "cat > ${ansible_hst_file} << EOF
+[webservers]
+servera.lab.example.com
+[proxyservers]
+serverc.lab.example.com
+EOF"
+
+  ${runuser} "cat > ${working_dir}/undoing-delegation.yml <<EOF
+---
+- name: Uninstall httpd
+  hosts: all
+  remote_user: devops
+  become: true
+  tasks:
+
+     - name: Stop and disable httpd
+       service:   
+           name: httpd
+           state: stopped
+           enabled: no
+       when: inventory_hostname in groups['webservers']
+
+     - name: Remove httpd
+       yum:
+          name: httpd
+          state: absent
+       when: inventory_hostname in groups['webservers']
+
+     - name: Disable firewall
+       firewalld: zone=public service=http permanent=true state=disabled immediate=true
+       when: inventory_hostname in groups['webservers']
+
+     - name: Removing file
+       file: name=/var/www/html/index.html state=absent
+EOF"
+    cd ${working_dir}
+    if ansible-playbook undoing-delegation.yml &>/dev/null;then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  else
+        print_SUCCESS
+  fi
+
+  pad " . Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

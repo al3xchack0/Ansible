@@ -1,0 +1,252 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-jinja2-lab - grading script for DO407 Implementing Jinja2 Templates (Lab)
+#
+# SYNOPSIS
+#     lab-jinja2-lab {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script setup verb creates the jinja2-lab working directory, and downloads the files
+#     used along it to the files subdirectory. It solves the lab following the book instructions,
+#     and grades it based on the presence of the correct /etc/motd on serverb. The cleanup/reset
+#     verbs reset the /etc/motd on serverb.
+#
+# CHANGELOG
+#   * Tue Jun 27 2017 Artur Glogowski <aglogows@redhat.com>
+#   - changed the way grading of /etc/motd on serverb works
+#   * Wed May 18 2016 Adolfo Vazquez <avr@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student"
+ansible_inventory_file=inventory
+ansible_config_file=ansible.cfg
+ansible_j2template_file=motd.j2
+ansible_playbook_file=motd.yml
+ansible_user=devops
+ansible_target=serverb.lab.example.com
+LOG=/dev/null
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+
+  lab_reset
+
+  host_reachable ${target}
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " · Installing ${reqd_package} package on ${target}"
+    if yum -y install ansible &>/dev/null; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  fi
+
+  pad " · Creating the working directory"
+  mkdir -p ${working_dir}/jinja2-lab
+  chown -R student. ${working_dir}/jinja2-lab
+  print_SUCCESS
+
+  pad " . Downloading ${ansible_config_file}"
+  if wget http://materials.example.com/jinja2/${ansible_config_file} -O ${working_dir}/jinja2-lab/${ansible_config_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Creating the files directory"
+  mkdir -p ${working_dir}/jinja2-lab/files
+  chown -R student. ${working_dir}/jinja2-lab/files
+  print_SUCCESS
+
+  pad " . Downloading ${ansible_inventory_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_inventory_file} -O ${working_dir}/jinja2-lab/files/${ansible_inventory_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Downloading ${ansible_j2template_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_j2template_file} -O ${working_dir}/jinja2-lab/files/${ansible_j2template_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Downloading ${ansible_playbook_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_playbook_file} -O ${working_dir}/jinja2-lab/files/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Changing permissions to the working directory"
+  chown -R student. ${working_dir}/jinja2-lab
+  print_SUCCESS
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${target}
+  host_reachable ${ansible_target}
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+  echo "Checking files"
+  pad " · Ensuring Ansible inventory file is present"
+  if stat ${working_dir}/jinja2-lab/${ansible_inventory_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad " · Ensuring motd.j2 file is present"
+  if stat ${working_dir}/jinja2-lab/${ansible_j2template_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad " · Ensuring Ansible playbook is present"
+  if stat ${working_dir}/jinja2-lab/${ansible_playbook_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+  echo "Grading the student's work on ${ansible_target}:"
+  echo
+
+  pad " · Checking motd"
+  cmd1=$(${ssh} ${ansible_target} cat /etc/motd| grep -Eo '[0-9]{0,9}'|wc -l)
+  if [[  ${cmd1} -eq 0 ]]; then
+      print_FAIL
+  else
+      print_PASS
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${target}
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+
+  pad " · Removing motd on ${ansible_target}"
+  if ${ssh} ${ansible_target} "rm -f /etc/motd;touch /etc/motd" &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad " · Downloading ${ansible_inventory_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_inventory_file} -O ${working_dir}/jinja2-lab/${ansible_inventory_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_j2template_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_j2template_file} -O ${working_dir}/jinja2-lab/${ansible_j2template_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Downloading ${ansible_playbook_file}"
+  if wget http://materials.example.com/jinja2/lab/${ansible_playbook_file} -O ${working_dir}/jinja2-lab/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Executing ${ansible_playbook_file} playbook"
+  if ansible-playbook -i ${working_dir}/jinja2-lab/${ansible_inventory_file} ${working_dir}/jinja2-lab/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+}
+
+function lab_reset {
+
+  host_reachable ${target}
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+
+  lab_cleanup
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

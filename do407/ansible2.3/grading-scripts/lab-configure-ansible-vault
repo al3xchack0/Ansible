@@ -1,0 +1,283 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-configure-ansible-vault - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     lab-configure-ansible-vault {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab-configure-ansible-vault.
+#
+# CHANGELOG
+#   * Mon Jul 3 2017 Artur Glogowski <aglogows@redhat.com>
+#   - modified to run as root
+#   * Thu Jun 8 2016 Chen Chang <cchang@redhat.com>
+#   - removed cleanup since it does nothing
+#   * Thu Apr 7 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - changed to use run_as_root=false
+#   * Mon Apr 4 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/conf-ansible-vault
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory/hosts
+ansible_vault_file=${working_dir}/super-secret.yml
+ansible_user=devops
+ansible_target=servera.lab.example.com
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade solve reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    echo "student" | sudo -S yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir} &>/dev/null"
+  ${runuser} "mkdir ${working_dir}/inventory &>/dev/null"
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating host file"
+  ${runuser} "cat > ${ansible_hst_file} << EOF
+[devservers]
+${ansible_target}
+EOF"
+  if stat ${ansible_hst_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  cd ${working_dir} &>/dev/null
+  echo "Checking files"
+  pad " . Ensuring super-secret.yml is present"
+  if stat ${ansible_vault_file} &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring passwd.yml is present"
+  if stat ${working_dir}/passwd.yml &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Ensuring passwd-encrypted.yml is present"
+  if stat ${working_dir}/passwd-encrypted.yml &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring passwd-decrypted.yml is present"
+  if stat ${working_dir}/passwd-encrypted.yml &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo "Checking for encryption and decryption"
+  pad " . Checking encryption for super-secret.yml"
+  ${runuser} "echo "redhat" > vault-pass-grade"
+  if ansible-vault view --vault-password-file=vault-pass-grade ${ansible_vault_file} &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  pad " . Checking changed vault password for passwd.yml"
+  ${runuser} "echo "ansible" > vault-pass-grade"
+  if ansible-vault view --vault-password-file=vault-pass-grade passwd.yml &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi  
+
+  pad " . Checking encryption for passwd-encrypted.yml"
+  ${runuser} "echo "redhat" > vault-pass-grade"
+  if ansible-vault view --vault-password-file=vault-pass-grade passwd-encrypted.yml &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  pad " . Checking decryption for passwd-decrypted.yml"
+  if cat passwd-decrypted.yml &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+  
+  rm -rf vault-pass-grade
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+  
+  echo "Nothing to cleanup."
+
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+ 
+  ${runuser} "cd ${working_dir} &>/dev/null"
+  pad " . Creating super-secret.yml encrypted file"
+  ${runuser} "echo "redhat" > ${working_dir}/vault-pass-solve"
+  ${runuser} "cat > ${working_dir}/super-secret.yml <<EOF
+This is encrypted.
+EOF"
+  if ${runuser} "ansible-vault encrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/super-secret.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Editing super-secret.yml encrypted file"
+  ${runuser} "ansible-vault decrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/super-secret.yml &>/dev/null"
+  ${runuser} "cat >> ${working_dir}/super-secret.yml <<EOF
+This is also encrypted.
+EOF"
+  if ${runuser} "ansible-vault encrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/super-secret.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Rekeying the encrypted file passwd.yml"
+  ${runuser} "cd ${working_dir} && curl -s -O http://materials.example.com/playbooks/passwd.yml"
+  ${runuser} "echo "redhat" > ${working_dir}/vault-pass-solve"
+  ${runuser} "echo "ansible" > ${working_dir}/new-vault-pass-solve"
+  if ${runuser} "ansible-vault rekey --vault-password-file=${working_dir}/vault-pass-solve --new-vault-password-file=${working_dir}/new-vault-pass-solve ${working_dir}/passwd.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Decrypting passwd.yml to passwd-decrypted.yml"
+  ${runuser} "echo "ansible" > ${working_dir}/vault-pass-solve"
+  if ${runuser} "ansible-vault decrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/passwd.yml --output=${working_dir}/passwd-decrypted.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Encrypting passwd-decrypted.yml to passwd-encrypted.yml"
+  ${runuser} "echo "redhat" > ${working_dir}/vault-pass-solve"
+  if ${runuser} "ansible-vault encrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/passwd-decrypted.yml --output=${working_dir}/passwd-encrypted.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  rm -rf ${working_dir}/new-vault-pass-solve
+  rm -rf ${working_dir}/vault-pass-solve
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,15 @@
+### Playbook for collecting some system facts
+
+---
+- name: Playbook for collecting facts        
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: creating file /root/hostinfo.txt
+    copy:
+      dest: /root/hostinfo.txt
+      content: "{{ ansible_hostname }} {{ ansible_processor_count }} {{ ansible_default_ipv4.address }} {{ ansible_default_ipv4.macaddress }}\n"

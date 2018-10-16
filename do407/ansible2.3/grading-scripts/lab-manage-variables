@@ -1,0 +1,462 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-managing-variables - grading script for DO407
+#
+# SYNOPSIS
+#     lab-managing-variables {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for managing variables.
+#
+# CHANGELOG
+#   * Tue Jun 20 2017 Artur Glogowski <aglogows@redhat.com>
+#   - added print_SUCCESS to tree install in lab_setup
+#   * Wed Jun  8 2016 Chen Chang <cchang@redhat.com>
+#   - add tree install to lab_setup
+#   * Thu May 26 2016 George Hacker <ghacker@redhat.com>
+#   - incorporate newline '\n' in content of copy module
+#   - break loop into separate tasks
+#   - remove the restart/reload firewalld task
+#   * Tue May 17 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - lab_setup provides student with a working config and inventory
+#   - changed pkg parameter for yum module to name
+#   * Tue May  3 2016 George Hacker <ghacker@redhat.com>
+#   - changed print_SUCCESS calls to print_PASS in lab_grade
+#   * Thu Apr 07 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - updates the playbooks to be in line with the book
+#   * Fri Apr 01 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="lab"
+fi
+
+working_dir="/home/student/${env}-managing-vars"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_playbook_file=${working_dir}/playbook.yml
+ansible_facts_playbook=${working_dir}/setup_facts.yml
+ansible_facts_file=${working_dir}/custom.fact
+ansible_remote_fact_file=/etc/ansible/facts.d/custom.fact
+ansible_vars_dir=${working_dir}/vars
+ansible_vars_file=${ansible_vars_dir}/main.yml
+ansible_tasks_dir=${working_dir}/tasks
+ansible_tasks_file=${ansible_tasks_dir}/main.yml
+ansible_user=devops
+ansible_group=lamp
+ansible_target=serverb.lab.example.com
+ansible_pkgs=(httpd firewalld)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · tree package is installed"
+  if ! rpm -q --quiet tree
+  then
+    yum install -y tree &> /dev/null && print_SUCCESS
+  else
+    print_SUCCESS
+  fi
+
+
+  pad " · ${reqd_package} package is installed"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[${ansible_group}]
+${ansible_target}
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_grade {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+
+  cd ${working_dir}
+
+  pad " · Ensuring facts playbook is present"
+  if stat ${ansible_facts_playbook} &>/dev/null; then
+    print_PASS
+    pad " · Ensuring facts file is present"
+    if stat ${ansible_facts_file} &>/dev/null; then
+      print_PASS
+      echo " · Ensuring facts can be retrieved"
+      vars=(db_package db_service web_package)
+      for i in ${vars[@]}; do
+        pad "   · Checking $i"
+        if ansible lamp -m setup -a "filter=ansible_local*"|grep -q $i; then
+          print_PASS
+        else
+          print_FAIL
+        fi
+      done
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+  pad " · Ensuring Ansible playbook is present"
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_PASS
+    pad " · Ensuring variables directory is present"
+    if stat ${ansible_vars_dir} &>/dev/null; then
+      print_PASS
+      pad " · Ensuring variables file is present"
+      if stat ${ansible_vars_file} &>/dev/null; then
+        print_PASS
+      else
+        print_FAIL
+      fi
+      pad " · Ensuring tasks directory is present"
+      if stat ${ansible_tasks_dir} &>/dev/null; then
+        print_PASS
+        pad " · Ensuring tasks file is present"
+        if stat ${ansible_tasks_file} &>/dev/null; then
+          print_PASS
+          else
+            print_FAIL
+          fi
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+  echo "Grading the student's work on ${ansible_target}:"
+  echo
+
+  echo " · Checking packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} rpm -q --quiet "$i"; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo " · Ensuring services are started"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Checking $i"
+    if ${ssh} ${ansible_target} systemctl is-active $i &>/dev/null; then
+      print_PASS
+    else
+      print_FAIL
+    fi
+  done
+
+  pad " · Checking database"
+  if ${ssh} ${ansible_target} systemctl is-active mariadb &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " · Ensuring the web server is reachable"
+  if curl -s -I http://${ansible_target} | grep -q 200; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+  pad " · Removing the database server"
+  if ${ssh} ${ansible_target} yum -y remove mariadb-server &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Removing index.html"
+  if ${ssh} ${ansible_target} rm -rf ${ansible_index_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Removing custom facts"
+  if ${ssh} ${ansible_target} rm -rf ${ansible_remote_fact_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  cd ${working_dir}
+
+  pad " · Creating the custom facts"
+  cat > ${ansible_facts_file} << EOF
+[packages]
+db_package = mariadb-server
+web_package = httpd
+
+[services]
+db_service = mariadb
+web_service = httpd
+EOF
+  if stat ${ansible_facts_file} &>/dev/null; then
+    print_SUCCESS
+    pad " · Creating the playbook for facts"
+    cat > ${ansible_facts_playbook} << EOF
+---
+- name: Install remote facts
+  hosts: lamp
+  vars:
+    remote_dir: /etc/ansible/facts.d
+    facts_file: custom.fact
+  tasks:
+    - name: Create the remote directory
+      file:
+        state: directory
+        recurse: yes
+        path: "{{ remote_dir }}"
+    - name: Install the new facts
+      copy:
+        src: "{{ facts_file }}"
+        dest: "{{ remote_dir }}"
+EOF
+    if stat ${ansible_facts_file} &>/dev/null; then
+      print_SUCCESS
+      pad " · Installing facts on ${ansible_target}"
+      cd ${working_dir}
+      if ${runuser} "ansible-playbook ${ansible_facts_playbook}" &>/dev/null; then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating vars directory"
+  if mkdir ${ansible_vars_dir}; then
+    print_SUCCESS
+    pad " · Creating vars file"
+    cat > ${ansible_vars_file} << EOF
+---
+web_root: /var/www/html
+EOF
+      if stat ${ansible_vars_file} &>/dev/null; then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+
+  pad " · Creating tasks directory"
+  if mkdir ${ansible_tasks_dir}; then
+    print_SUCCESS
+    pad " · Creating tasks file"
+    cat > ${ansible_tasks_file} << EOF
+---
+  - name: Install and start the database and web servers
+    yum:
+      name:
+        - "{{ ansible_local.custom.packages.db_package }}"
+        - "{{ ansible_local.custom.packages.web_package }}"
+      state: latest
+
+  - name: Start the database service
+    service:
+      name: "{{ ansible_local.custom.services.db_service }}"
+      state: started
+      enabled: true
+
+  - name: Start the web service
+    service:
+      name: "{{ ansible_local.custom.services.web_service }}"
+      state: started
+      enabled: true
+EOF
+     if stat ${ansible_tasks_file} &>/dev/null; then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+
+  pad " · Creating ${ansible_playbook_file}"
+  cat > ${ansible_playbook_file} << EOF
+---
+- hosts: lamp
+  vars:
+    firewall: firewalld
+
+  tasks:
+    - name: Include the variable file
+      include_vars: vars/main.yml
+
+    - name: Include the tasks
+      include: tasks/main.yml
+
+    - name: Install the firewall
+      yum:
+        name: "{{ firewall }}"
+        state: latest
+
+    - name: Start the firewall
+      service:
+        name: "{{ firewall }}"
+        state: started
+        enabled: true
+
+    - name: Open the port for the web server
+      firewalld:
+        service: http
+        state: enabled
+        immediate: true
+        permanent: true
+
+    - name: Create index.html
+      copy:
+        content: "{{ ansible_fqdn }}({{  ansible_default_ipv4.address }}) has been customized by Ansible\n"
+        dest: "{{ web_root }}/index.html"
+EOF
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+    chown -R student ${working_dir}
+    pad " · Running the playbook"
+    if ${runuser} "ansible-playbook ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

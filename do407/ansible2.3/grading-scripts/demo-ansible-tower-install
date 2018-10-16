@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-ansible-tower-install - script for DO407 Ansible tower practice
+#
+# SYNOPSIS
+#     demo-ansible-tower-install {setup|grade|solve|cleanup|reset}
+#
+#        setup   - copy templates to ~student on workstation
+#        grade   - perform lab evaluation steps
+#        solve   - do the lab exercise for the student (may call setup)
+#        cleanup - remove changes applied to serverb and tower hosts
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to confirm if a student has created two Ansible
+#     roles - one customizes a user environment and the other configures
+#     an Apache webserver. The user environment role requires an argument
+#     that specifies which user to customize. The Apache role takes an
+#     optional argument that enables the web server when set to true.
+#
+# CHANGELOG
+#   * Thu Apr 22 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+tower='tower'
+
+content='http://content.example.com'
+tower_license='http://materials.example.com/Ansible-Tower-license.txt'
+tower_bits_dir='ansible2.3/x86_64/dvd/ansible-tower'
+tower_bits='ansible-tower-setup-bundle-3.1.1-1.el7.tar.gz'
+lab_dir="/home/student/ansible"
+working_dir=${lab_dir}/ansible-tower-install
+
+#declare -a valid_commands=(setup grade solve cleanup reset)
+declare -a valid_commands=(setup reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+  
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir}" &>/dev/null
+  print_SUCCESS
+
+  pad " · Copying Ansible tower bits to ${control_node}"
+  cmd1="curl -s ${content}/${tower_bits_dir}/${tower_bits} -o ${working_dir}/${tower_bits}"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+  pad " · Copying Ansible tower license to ${control_node}"
+  cmd2="curl -s ${tower_license} -o ${working_dir}/Ansible-Tower-license.txt"
+  if ${runuser} "${cmd2}"
+  then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+  echo
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+  host_reachable ${control_node}
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${tower}
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+}
+
+function lab_reset {
+
+# lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the Ansible tower bits from ${control_node}"
+  cmd1="rm -rf ${working_dir}"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

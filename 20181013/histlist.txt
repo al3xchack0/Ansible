@@ -1,0 +1,98 @@
+    1  vim /etc/ansible/ansible.cfg 
+    2  sudo vim /etc/ansible/ansible.cfg 
+    3  cd /opt/ansible/dynamic/inventory
+    4  ls
+    5  chmod +x *.py
+    6  sudo chmod +x *.py
+    7  ll
+    8  ansible all --list-hosts
+    9  ll
+   10  vim hosts 
+   11  ./rabbitsa.py --hosts
+   12  ./rabbitsa.py --list
+   13  ./rabbitsb.py --list
+   14  ll
+   15  mv rabbitsa.py arabbits.py
+   16  sudo mv rabbitsa.py arabbits.py
+   17  ll
+   18  ansible all --list-hosts
+   19  ansible all -m ping
+   20  sudo vim /etc/ansible/ansible.cfg 
+   21  cd
+   22  pwd
+   23  ls
+   24  cd playbooks/
+   25  vim httpd.yml 
+   26  vim ~/.vimrc
+   27  cat ~/.vimrc 
+   28  ls /etc/vimrc 
+   29  vim httpd.yml 
+   30  ansible-playbook httpd.yml --syntax-check
+   31  ansible-playbook httpd.yml 
+   32  vim httpd-auth.yml
+   33  ansible-playbook httpd-auth.yml --syntax-check
+   34  ansible-playbook httpd-auth.yml 
+   35  vim httpd-auth.yml
+   36  vim adhoc.sh
+   37  ls
+   38  chmod a+x adhoc.sh 
+   39  ./adhoc.sh 
+   40  vim /opt/ansible/dynamic/inventory/hosts 
+   41  sudo vim /opt/ansible/dynamic/inventory/hosts 
+   42  cat /opt/ansible/dynamic/inventory/hosts
+   43  head -9  httpd.yml > tag.yml
+   44  vim tag.yml 
+   45  ansible-playbook tag.yml --syntax-check
+   46  vim tag.yml 
+   47  ansible-playbook tag.yml --syntax-check
+   48  ansible-playbook tag.yml 
+   49  ansible-playbook tag.yml -t production
+   50  ansible-playbook tag.yml -t backup
+   51  vim tag.yml 
+   52  ansible-playbook tag.yml 
+   53  head httpd.yml > ping.yml
+   54  vim ping.yml 
+   55  ansible-playbook ping.yml --syntax-check
+   56  ansible-playbook ping.yml -t tag1
+   57  ansible-playbook ping.yml -t tag2
+   58  head httpd.yml > inaccess.yml
+   59  vim inaccess.yml
+   60  ansible-playbook inaccess.yml
+   61  vim inaccess.yml
+   62  head -11 httpd.yml > hostinfo.yml
+   63  vim hostinfo.yml
+   64  ansible-playbook hostinfo.yml
+   65  vim hostinfo.yml
+   66  ansible-playbook hostinfo.yml
+   67  vim hostinfo.yml
+   68  vim noshutdown.yml
+   69  head -11 httpd.yml > noshutdown.yml
+   70  vim noshutdown.yml
+   71  head -11 noshutdown.yml > shutdown.yml
+   72  vim shutdown.yml
+   73  vim saveabort.yml
+   74  head -11 httpd.yml > saveabort.yml
+   75  vim saveabort.yml
+   76  ansible-playbook saveabort.yml
+   77  vim saveabort.yml
+   78  ansible-playbook saveabort.yml
+   79  vim saveabort.yml
+   80  ls -l
+   81  cat adhoc.sh 
+   82  history
+   83  ls -l
+   84  cat hostinfo.yml 
+   85  ls -l
+   86  cat httpd-auth.yml 
+   87  ls -l
+   88  cat httpd.yml 
+   89  cat inaccess.yml 
+   90  ls -l
+   91  cat noshutdown.yml 
+   92  ls -l
+   93  cat ping.yml 
+   94  cat saveabort.yml 
+   95  cat shutdown.yml 
+   96  cat tag.yml 
+   97  ls -l
+   98  history > histlist.txt

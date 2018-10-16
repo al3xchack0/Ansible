@@ -1,0 +1,331 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-playbooks-cr - script for DO407 Ansible playbook practice
+#
+# SYNOPSIS
+#     lab-ansible-playbooks-cr {setup|grade|solve|cleanup|reset}
+#
+#        setup   - copy templates to ~student on workstation
+#        grade   - perform lab evaluation steps
+#        cleanup - remove changes applied to workstation and managed hosts
+#        reset   - same as cleanup + remove Ansible project on workstation
+#
+# DESCRIPTION
+#     This script is used to setup the lab environment for Comp Review
+#     Sec-2
+#
+# CHANGELOG
+#   * Wed Jun 28 2017 Chen Chang <cchang@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation.lab.example.com'
+managed_nodes=( serverb.lab.example.com serverc.lab.example.com serverd.lab.example.com )
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/ansible-playbooks-cr
+
+declare -a valid_commands=(setup grade cleanup reset)
+
+function lab_setup {
+  reqd_package='ansible'
+
+  print_header "Setting up ${control_node} for lab exercise work:"
+  host_reachable ${control_node}
+
+  for managed_node in "${managed_nodes[@]}"; do
+    host_reachable ${managed_node}
+  done
+ 
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    if yum install -q -y ${reqd_package}; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  fi
+  
+  pad " . Creating the working directory"
+  if install -d ${working_dir} -m 775 -o student -g student; then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+  print_line
+}
+
+function lab_grade {
+
+  print_header "Grading the student's work on ${control_node}:"
+  host_reachable ${control_node}
+  print_line
+  
+  if ! host_reachable serverb || ! host_reachable serverc || ! host_reachable serverd; then 
+     pad " . Ensure all managed host are reachable"
+     print_FAIL
+  fi
+
+  # Check the Ansbile config file
+  pad " . Verify the Ansible configuration file"
+  if [ -e "${working_dir}/ansible.cfg" ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the Ansible remote user configuraton
+  pad " . Verify the remote user configuration"
+  cd ${working_dir}
+  config_ru=$(ansible -h | grep 'connect as this user' | sed -e 's/^.*=//' -e 's/).*$//')
+  if [ "${config_ru}" == 'devops' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the Ansible become user configuraton
+  pad " . Verify the become user configuration"
+  cd ${working_dir}
+  config_bu=$(ansible -h | grep 'desired sudo user' | sed -e 's/^.*=//' -e 's/).*$//')
+  if [ "${config_bu}" == 'root' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the Ansible become method configuraton
+  pad " . Verify the become method configuration"
+  cd ${working_dir}
+  config_bm=$(ansible -h | grep 'privilege escalation method' | sed -e 's/^.*=//' -e 's/).*$//')
+  if [ "${config_bm}" == 'sudo' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Very ftpservers inventory host group
+  pad " . Verify the ftpservers inventory host group"
+  cd ${working_dir}
+  ftpservers=$(ansible ftpservers --list-host | sed '1d' | sort | xargs)
+  if [ "${ftpservers}" == 'serverb.lab.example.com serverd.lab.example.com' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Very ftpclients inventory host group
+  pad " . Verify the ftpclients inventory host group"
+  cd ${working_dir}
+  ftpclients=$(ansible ftpclients --list-host | sed '1d' | sort | xargs)
+  if [ "${ftpclients}" == 'serverc.lab.example.com' ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the ftpclient playbook file
+  pad " . Verify the ftpclient playbook file exists"
+  if [[ -f "${working_dir}/ftpclient.yml" ]]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the syntax for ftpclient playbook file
+  pad " . Checking the syntax for ftpclient playbook file"
+  cd ${working_dir}
+  if ansible-playbook --syntax-check ${working_dir}/ftpclient.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Checking the Jinja2 temlate
+  pad " . Verifying Jinja2 template"
+  cd ${working_dir}
+  if diff <(curl -s -o - http://materials.example.com/ansible-playbooks-cr/templates/vsftpd.conf.j2) templates/vsftpd.conf.j2; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Checking the defaults-template.yml file
+  pad " . Verifying defaults-template.yml file"
+  cd ${working_dir}
+  if diff <(curl -s -o - http://materials.example.com/ansible-playbooks-cr/vars/defaults-template.yml) vars/defaults-template.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Checking the vars.yml file
+  pad " . Verifying vars.yml file"
+  cd ${working_dir}
+  if grep '^vsftpd_packages: *vsftpd *$' vars/vars.yml && grep '^vsftpd_service: *vsftpd *$' vars/vars.yml && grep '^vsftpd_config_file: */etc/vsftpd/vsftpd.conf *$' vars/vars.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the syntax for ansible-vsftpd.yml playbook file
+  pad " . Checking the syntax for ansible-vsftpd.yml playbook file"
+  cd ${working_dir}
+  if ansible-playbook --syntax-check ${working_dir}/ansible-vsftpd.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check the syntax for site.yml playbook file
+  pad " . Checking the syntax for site.yml playbook file"
+  cd ${working_dir}
+  if ansible-playbook --syntax-check ${working_dir}/site.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check for lftp package on serverc
+  pad " . Verify lftp package on serverc"
+  if ${ssh} serverc "rpm -q --quiet lftp"; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+ 
+  # Check for vsftpd package on serverb
+  pad " . Verifying the vsftpd package on serverb"
+  if ${ssh} serverb "rpm -q --quiet vsftpd"; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check for vsftpd package on serverd
+  pad " . Verifying the vsftpd package on serverd"
+  if ${ssh} serverd "rpm -q --quiet vsftpd"; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check for vsftpd service on serverb
+  pad " . Verifying the vsftpd service on serverb"
+  if ${ssh} serverb "systemctl is-enabled vsftpd && systemctl is-active vsftpd"; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check for vsftpd service on serverd
+  pad " . Verifying the vsftpd service on serverd"
+  if ${ssh} serverd "systemctl is-enabled vsftpd && systemctl is-active vsftpd"; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  # Check ftp service on serverb
+  pad " . Verifying ftp transfer on serverb"
+  ${ssh} serverb 'touch /var/ftp/pub/testfile'
+  
+  ${ssh} serverc 'lftp -c "open -u anonymous,student@example.com serverb.lab.example.com; cd pub; get testfile"'
+
+  if [ $? -eq 0 ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  ${ssh} serverc 'rm /root/testfile'
+  ${ssh} serverb 'rm /var/ftp/pub/testfile'
+
+  # Check ftp service on serverd
+  pad " . Verifying ftp transfer on serverd"
+  ${ssh} serverd 'touch /var/ftp/pub/testfile'
+  
+  ${ssh} serverc 'lftp -c "open -u anonymous,student@example.com serverd.lab.example.com; cd pub; get testfile"'
+
+  if [ $? -eq 0 ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  ${ssh} serverc 'rm /root/testfile'
+  ${ssh} serverd 'rm /var/ftp/pub/testfile'
+
+  # Overall grade
+  print_line
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]; then
+    print_PASS
+  else
+    print_FAIL
+  fi  
+
+  print_line
+}
+
+function lab_cleanup {
+  
+  print_header "Cleaning up the lab on ${control_node}:"
+
+  if host_reachable serverb && host_reachable serverc && host_reachable serverd; then
+    if ${ssh} serverc "rpm -q --quiet lftp"; then
+      pad " . Undoing playbook tasks on serverc"
+      ${ssh} serverc "yum remove -y lftp"
+      print_SUCCESS
+    fi
+
+    if ${ssh} serverb "rpm -q --quiet vsftpd"; then
+      pad " . Undoing playbook tasks on serverb"
+      ${ssh} serverb "yum remove -y vsftpd"
+      ${ssh} serverb "firewall-cmd --remove-service ftp --permanent; firewall-cmd --reload"
+      print_SUCCESS
+    fi
+
+    if ${ssh} serverd "rpm -q --quiet vsftpd"; then
+      pad " . Undoing playbook tasks on serverd"
+      ${ssh} serverd "yum remove -y vsftpd"
+      ${ssh} serverd "firewall-cmd --remove-service ftp --permanent; firewall-cmd --reload"
+      print_SUCCESS
+    fi
+
+  else
+    print_FAIL
+  fi
+
+  print_line
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  print_header "Resetting the lab on ${control_node}:"
+  pad " . Removing the directory from ${control_node}"
+  rm -rf ${working_dir}
+  print_SUCCESS
+
+  print_line
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

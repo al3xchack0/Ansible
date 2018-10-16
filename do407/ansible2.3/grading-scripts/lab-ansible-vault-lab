@@ -1,0 +1,527 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-vault-lab - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     lab-ansible-vault-lab {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This setup verb in the script,checks if Ansible is installed on workstation and 
+#     creates a directory structure for the lab environment with an 
+#     inventory file. The inventory file /home/student/ansible/lab-ansible-vault/
+#     inventory/hosts points to serverb.lab.example.com as managed host which is part of
+#     [prodservers] group.
+#
+# CHANGELOG
+#   * Thu Jun 29 2017 Artur Glogowski <aglogows@redhat.com>
+#   - changed to run as root
+#   * Tue Apr 5 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - modified to add tasks for luksAddKey
+#   * Mon Apr 4 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/lab-ansible-vault
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory/hosts
+ansible_vault_file=${working_dir}/secret.yml
+ansible_user=devops
+ansible_target=serverb.lab.example.com
+#ansible_pkgs=(httpd firewalld python-httplib2)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+  if ! host_reachable ${ansible_target}; then
+     pad " . ${ansible_target} is not reachable"
+     print_FAIL
+     echo "Ensure that ${ansible_target} is started/reachable."
+     exit
+  fi
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    echo "student" | sudo -S yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir} &>/dev/null"
+  ${runuser} "mkdir ${working_dir}/inventory &>/dev/null"
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating host file"
+  ${runuser} "cat > ${ansible_hst_file} << EOF
+[prodservers]
+${ansible_target}
+EOF"
+  if stat ${ansible_hst_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating files directory"
+  if [[ ! -d /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/files ]]
+  then
+    mkdir /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/files
+    print_SUCCESS || print_FAIL
+  else
+    print_SUCCESS
+  fi
+
+  pad " . Creating templates directory"
+  if [[ ! -d /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/templates ]]
+  then
+    mkdir /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/templates
+    print_SUCCESS || print_FAIL
+  else
+    print_SUCCESS
+  fi
+
+
+
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  cd ${working_dir} &>/dev/null
+  echo "Checking files"
+  pad " . Ensuring role vars/main.yml is present"
+  if stat ${working_dir}/roles/encryptdisk/vars/main.yml &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring role tasks/main.yml is present"
+  if stat ${working_dir}/roles/encryptdisk/tasks/main.yml &>/dev/null; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Checking encryption for vars/main.yml"
+  echo "redhat" > vault-pass-grade
+  if ansible-vault view --vault-password-file=vault-pass-grade roles/encryptdisk/vars/main.yml &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  pad " . Checking the syntax of encrypt.yml"
+  if ansible-playbook --syntax-check --vault-password-file=vault-pass-grade encrypt.yml &>/dev/null;then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  echo "Verifying LUKS disk"
+  pad " . Checking if disk is LUKS encrypted"
+  if ${ssh} root@${ansible_target} "cryptsetup status crypto | grep -w active" &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  pad " . Checking mount point on ${ansible_target}"
+  if ${ssh} root@${ansible_target} "umount /crypto" &>/dev/null; then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  pad " . Checking the passpharse for LUKS"
+  ${ssh} root@${ansible_target} "cryptsetup luksClose /dev/mapper/crypto" &>/dev/null
+  if ${ssh} root@${ansible_target} "echo 'Re4H1TAns1BLe' | cryptsetup luksOpen /dev/vdb crypto -" &>/dev/null;then
+      print_PASS
+  else
+      print_FAIL
+  fi
+
+  echo "Checking the donwload keyfile"
+  pad " . Ensuring the keyfile is download"
+  if stat ${working_dir}/keyfile-encrypted.j2 &>/dev/null; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  pad " . Checking the changed password of keyfile"
+  if ansible-vault view --vault-password-file=vault-pass-grade ${working_dir}/keyfile-encrypted.j2 &>/dev/null; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  echo "Verifying addtion of keyfile to encrypted disk"
+  pad " . Ensuring decrypted keyfile is present"
+  if [ $(cat ${working_dir}/roles/encryptdisk/templates/keyfile.j2 2>/dev/null | base64 | wc -l) -eq 1 ]; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Verifying the keyfile added on serverb"
+  ${ssh} root@${ansible_target} "cryptsetup luksClose /dev/mapper/crypto" &>/dev/null
+  if ${ssh} root@${ansible_target} "cryptsetup luksOpen /dev/vdb crypto -d /root/keyfile" &>/dev/null;then
+      print_PASS
+  else
+     print_FAIL
+  fi
+
+  pad " . Verifying fstab"
+  ${ssh} root@${ansible_target} "mount -a"
+  if ${ssh} root@${ansible_target} "df -h | grep crypto" &>/dev/null;then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  rm -rf vault-pass-grade
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  if ${ssh} root@${ansible_target} "df -h | grep crypto" &>/dev/null;then
+     if [ ! -d ${working_dir} ];then
+      mkdir -p ${working_dir}/inventory
+     fi  
+    cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+    cat > ${ansible_hst_file} << EOF
+[prodservers]
+${ansible_target}
+EOF
+    cat > ${working_dir}/delete_encrypt.yml <<EOF
+---
+- name: delete user accounts created by this lab
+  hosts: prodservers
+  remote_user: devops
+  become: yes
+  vars:
+     luks_name: crypto
+  tasks:
+    - name: Check if device already unlocked.
+      ignore_errors: True
+      shell: stat /dev/mapper/{{ luks_name }} > /dev/null; echo $?;
+      register: already_unlocked
+
+    - name: Umount volumes
+      mount: name=/{{ luks_name }} src=/dev/mapper/{{ luks_name }} fstype=xfs state=absent
+      when: already_unlocked.stdout == "0"
+
+    - name: Close disk
+      command: cryptsetup close {{ luks_name }}
+      when: already_unlocked.stdout == "0"
+    
+    - name: Erase keyslots
+      command: cryptsetup erase -q /dev/vdb
+      when: already_unlocked.stdout == "0"
+
+    - name: Deleting the keyfile
+      file: path=/root/keyfile state=absent
+   
+    - name: Delete entry from crypttab
+      file: path=/etc/crypttab state=absent
+EOF
+    cd ${working_dir}
+    if ansible-playbook delete_encrypt.yml &>/dev/null;then
+       print_SUCCESS
+    else
+       print_FAIL
+    fi
+  else
+    print_SUCCESS
+  fi
+  rm -rf ${working_dir}/delete_encrypt.yml &>/dev/null
+
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+ 
+  cd ${working_dir}
+  pad " . Creating directory structure for role"
+  if ${runuser} "cd ${working_dir} && ansible-galaxy init -p roles/ encryptdisk &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Editing and encrypting vars/main.yml"
+  ${runuser} "cat > ${working_dir}/roles/encryptdisk/vars/main.yml <<EOF
+---
+# vars file for encryptdisk
+luks_dev: /dev/vdb
+luks_name: crypto
+luks_pass: Re4H1TAns1BLe
+EOF"
+  ${runuser} `echo "redhat" > ${working_dir}/vault-pass-solve`
+  if ${runuser} "cd ${working_dir} && ansible-vault encrypt --vault-password-file=vault-pass-solve roles/encryptdisk/vars/main.yml &>/dev/null";then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Creating the tasks/main.yml"
+  ${runuser} "cd ${working_dir} && curl -s -O http://materials.example.com/playbooks/encryptdisk-tasks.yml"
+  if ${runuser} "cd ${working_dir} && cp encryptdisk-tasks.yml roles/encryptdisk/tasks/main.yml &>/dev/null";then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Creating the playbook encrypt.yml"
+  ${runuser} "cat > ${working_dir}/encrypt.yml <<EOF
+---
+- name: Encrypt disk on serverb using LUKS
+  hosts: prodservers
+  remote_user: devops
+  become: yes
+  roles:
+    - encryptdisk
+EOF"
+  if ${runuser} "cd ${working_dir} && ansible-playbook --syntax-check --vault-password-file=vault-pass-solve encrypt.yml &>/dev/null";then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi 
+ 
+  pad " . Run the playbook encrypt.yml"
+  if ${runuser} "cd ${working_dir} && ansible-playbook --vault-password-file=vault-pass-solve encrypt.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Change the vault password of keyfile-encrypted.j2"
+  ${runuser} `echo "RedHat" > ${working_dir}/vault-pass-solve`
+  ${runuser} `echo "redhat" > ${working_dir}/new-vault-pass-solve`
+  ${runuser} "cd ${working_dir} && curl -s -O http://materials.example.com/playbooks/keyfile-encrypted.j2"
+  if ${runuser} "cd ${working_dir} && ansible-vault rekey --vault-password-file=vault-pass-solve --new-vault-password-file=new-vault-pass-solve keyfile-encrypted.j2 &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+ 
+  pad " . Decrypting the keyfile-encrypted.j2"
+  ${runuser} `cd ${working_dir} && echo "redhat" > vault-pass-solve`
+  if ${runuser} "cd ${working_dir} && ansible-vault decrypt --vault-password-file=vault-pass-solve keyfile-encrypted.j2 --output=roles/encryptdisk/templates/keyfile.j2 &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Adding variable in defaults/main.yml"
+  ${runuser} "cat >> ${working_dir}/roles/encryptdisk/defaults/main.yml <<EOF
+addkey: no
+EOF"
+  if grep 'addkey: no' ${working_dir}/roles/encryptdisk/defaults/main.yml  &>/dev/null; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Editing the vars/main.yml"
+  ${runuser} "ansible-vault decrypt --vault-password-file=${working_dir}/vault-pass-solve ${working_dir}/roles/encryptdisk/vars/main.yml &>/dev/null"
+  ${runuser} "cat >> ${working_dir}/roles/encryptdisk/vars/main.yml <<EOF
+luks_key: templates/keyfile.j2
+EOF"
+  if ${runuser} "cd ${working_dir} && ansible-vault encrypt --vault-password-file=vault-pass-solve roles/encryptdisk/vars/main.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Editing the tasks/main.yml"
+  ${runuser} "cat >> ${working_dir}/roles/encryptdisk/tasks/main.yml <<EOF
+  - name: copying the keyfile
+    template: src=templates/keyfile.j2 dest=/root/keyfile owner=root group=root mode=0600
+    when: addkey
+
+  - name: add new keyslot to encrypted disk
+    shell: printf {{ luks_pass }} | cryptsetup luksAddKey {{ luks_dev }} /root/keyfile
+    when: addkey
+EOF"
+  print_SUCCESS
+  
+
+  pad " . Editing the playbook encrypt.yml"
+  ${runuser} "cat > ${working_dir}/encrypt.yml <<EOF
+---
+- name: Encrypt disk on serverb using LUKS
+  hosts: prodservers
+  remote_user: devops
+  become: yes
+  roles:
+    - role: encryptdisk
+      addkey: yes
+EOF"
+  if ${runuser} "cd ${working_dir} && ansible-playbook --syntax-check --vault-password-file=vault-pass-solve encrypt.yml &>/dev/null";then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Running the playbook to add key"
+  if ${runuser} "cd ${working_dir} && ansible-playbook --vault-password-file=vault-pass-solve encrypt.yml &>/dev/null"; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  rm -rf ${working_dir}/new-vault-pass-solve
+  rm -rf ${working_dir}/vault-pass-solve
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  if ${ssh} root@${ansible_target} "df -h | grep /crypto" &>/dev/null; then
+    if [ ! -d ${working_dir} ];then
+      mkdir -p ${working_dir}/inventory
+    fi
+    cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+    cat > ${ansible_hst_file} << EOF
+[prodservers]
+${ansible_target}
+EOF
+
+    cat > ${working_dir}/delete_encrypt.yml <<EOF
+---
+- name: delete user accounts created by this lab
+  hosts: prodservers
+  remote_user: devops
+  become: yes
+  vars:
+     luks_name: crypto
+  tasks:
+    - name: Check if device already unlocked.
+      ignore_errors: True
+      shell: stat /dev/mapper/{{ luks_name }} > /dev/null; echo $?;
+      register: already_unlocked
+
+    - name: Umount volumes
+      mount: name=/{{ luks_name }} src=/dev/mapper/{{ luks_name }} fstype=xfs state=absent
+      when: already_unlocked.stdout == "0"
+
+    - name: Close disk
+      command: cryptsetup close {{ luks_name }}
+      when: already_unlocked.stdout == "0"
+    
+    - name: Erase keyslots
+      command: cryptsetup erase -q /dev/vdb
+      when: already_unlocked.stdout == "0"
+
+    - name: Deleting the keyfile
+      file: path=/root/keyfile state=absent
+   
+    - name: Delete entry from crypttab
+      file: path=/etc/crypttab state=absent
+EOF
+
+    cd ${working_dir}
+    if ansible-playbook delete_encrypt.yml &>/dev/null;then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  else
+	print_SUCCESS
+  fi
+
+  cd ..
+  pad " . Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

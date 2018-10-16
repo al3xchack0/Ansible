@@ -1,0 +1,697 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-roles-lab - grading script for DO407 Ansible roles lab
+#
+# SYNOPSIS
+#     lab-ansible-roles-lab {setup|grade|solve|cleanup|reset}
+#
+#        setup   - create working directory with inventory and templates
+#        grade   - perform lab evaluation steps
+#        solve   - do the lab exercise for the student
+#        cleanup - remove changes applied to serverb and tower hosts
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to confirm if a student has created two Ansible
+#     roles - one customizes a user environment and the other configures
+#     an Apache webserver. The user environment role requires an argument
+#     that specifies which user to customize. The Apache role takes an
+#     optional argument that enables the web server when set to true.
+#
+# CHANGELOG
+#   * Mon Jun 26 2017 Artur Glogowski <aglogows@redhat.com>
+#   - moved the LAB from tower to serverc
+#   - removed code for patch/restore ansible-galaxy
+#   - added fix for ansible-galaxy missing directories
+#   * Wed Jun 21 2017 Artur Glogowski <aglogows@redhat.com>
+#   - added check for servera, serverb and serverc
+#   - fixed template creation  
+#   * Wed May 18 2016 George Hacker <ghacker@redhat.com>
+#   - added firewalld tasks in apache role
+#   - lab_setup provides student with a working config and inventory
+#   * Thu May  5 2016 George Hacker <ghacker@redhat.com>
+#   - added code to patch/restore ansible-galaxy
+#   * Thu Apr 14 2016 George Hacker <ghacker@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="lab"
+fi
+
+serverb='serverb'
+serverc='serverc'
+tower='tower'
+
+materials='http://materials.example.com/grading/roles/lab'
+file_list='mkcd.sh.j2 apache_httpdconf.j2 apache_indexhtml.j2'
+prof_icon='/usr/share/icons/hicolor/48x48/apps/system-logo-icon.png'
+user_pkgs='git tree vim-enhanced'
+
+working_dir="/home/student/${env}-roles"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_user=devops
+
+declare -a valid_commands=(setup grade solve cleanup reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  host_reachable ${serverb}
+  host_reachable ${serverc}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · Removing custom configuration"
+  cmd1="rm -f /etc/httpd/conf.d/{ssl.conf.bak,https.conf}"
+  if ${ssh} serverb "${cmd1}"; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · ${reqd_package} package is installed"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      ${runuser} "mkdir -p ${working_dir}"
+      ${runuser} "cat >> ${ansible_cfg_file}" << EOF
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      ${runuser} "cat >> ${ansible_hst_file}" << EOF
+[managed_hosts]
+serverb.lab.example.com
+serverc.lab.example.com
+EOF
+      print_SUCCESS
+      pad " · Copying lab files"
+      error_count=0
+      for file in ${file_list}
+      do
+        cmd1="curl -o ${working_dir}/${file} ${materials}/${file}"
+        if ! ${runuser} "${cmd1}" &> /dev/null
+        then
+          error_count=1
+        fi
+      done
+      if [[ ${error_count} -eq 0 ]]
+      then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " . Creating files directory"
+  if [[ ! -d /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/files ]]
+  then
+    mkdir /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/files
+    print_SUCCESS || print_FAIL
+  else
+    print_SUCCESS
+  fi
+
+  pad " . Creating templates directory"
+  if [[ ! -d /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/templates ]]
+  then
+    mkdir /usr/lib/python2.7/site-packages/ansible/galaxy/data/default/templates
+    print_SUCCESS || print_FAIL
+  else
+    print_SUCCESS
+  fi
+
+
+  #patch_ansible_galaxy
+
+  echo
+}
+
+function lab_grade {
+
+  lab_cleanup
+
+  host_reachable ${control_node}
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+
+  pad ' · student.myenv role exists'
+  if [[ -d ${working_dir}/roles/student.myenv ]]
+  then
+    print_PASS
+    cd ${working_dir}
+
+    # create/run playbook that uses student.myenv role without variable
+    cat <<\EOF > /tmp/tmpfile
+---
+- name: setup personal environment without variable
+  hosts: all
+  roles:
+    - student.myenv
+EOF
+    cmd1="cat > myenv-novar.yml"
+    cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+    pad '   · Running student.myenv role without a variable'
+    cmd1="ansible-playbook myenv-novar.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_FAIL
+    else
+      print_PASS
+    fi
+
+    # create/run playbook that uses student.myenv role with variable
+    cat <<\EOF > /tmp/tmpfile
+---
+- name: setup personal environment with variable
+  hosts: all
+  roles:
+    - role: student.myenv
+      myenv_user: student
+EOF
+    cmd1="cat > myenv-withvar.yml"
+    cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+    pad '   · Running student.myenv role with a variable'
+    cmd1="ansible-playbook myenv-withvar.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_PASS
+      # check effect of Ansible - only need to check one host: serverc
+      pad "   · Confirming required packages installed on ${serverc}"
+      cmd1="rpm -q ${user_pkgs}"
+      if ${ssh} ${serverc} "${cmd1}" &> /dev/null
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+      pad "   · Checking ${user} customization"
+      cmd1="grep 'alias tree=' ~${user}/.bashrc"
+      cmd2="[[ -f ~${user}/profile.png ]]"
+      if ${ssh} ${serverc} "${cmd1} && ${cmd2}" &> /dev/null
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+      pad '   · mkcd.sh initialization script installed'
+      cmd1='[[ -f /etc/profile.d/mkcd.sh ]]'
+      if ${ssh} ${serverc} "${cmd1}" &> /dev/null
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+
+  else
+    print_FAIL
+  fi
+
+  pad ' · myapache role exists'
+  if [[ -d ${working_dir}/roles/myapache ]]
+  then
+    print_PASS
+    cd ${working_dir}
+
+    # create/run playbook that uses myapache role without variable
+    cat <<\EOF > /tmp/tmpfile
+---
+- name: setup apache
+  hosts: serverb.lab.example.com
+  roles:
+    - myapache
+EOF
+    cmd1="cat > myapache-novar.yml"
+    cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+    pad '   · Running myapache role without a variable'
+    cmd1="ansible-playbook myapache-novar.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_PASS
+      # check result - httpd package installed, webserver not available
+      pad "   · Confirming httpd installed on ${serverb}"
+      cmd1='rpm -q --quiet httpd'
+      if ${ssh} ${serverb} "${cmd1}" &> /dev/null
+      then
+        print_PASS
+        pad "   · Confirming ${serverb} web content not available"
+        if curl http://serverb.lab.example.com 2>&1 |
+           grep -q Failed
+        then
+          print_PASS
+        else
+          print_FAIL
+        fi
+      else
+        print_FAIL
+      fi
+
+    else
+      print_FAIL
+    fi
+
+    # create/run playbook that uses myapache role with variable
+    cat <<\EOF > /tmp/tmpfile
+---
+- name: setup and enable apache
+  hosts: serverb.lab.example.com
+  roles:
+    - role: myapache
+      apache_enable: true
+EOF
+    cmd1="cat > myapache-withvar.yml"
+    cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+    pad '   · Running myapache role with a variable'
+    cmd1="ansible-playbook myapache-withvar.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_PASS
+      pad "   · Confirming ${serverb} web content is available"
+      if curl http://serverb.lab.example.com 2>&1 |
+         grep -q 'Apache is running'
+      then
+        print_PASS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${serverb}
+  host_reachable ${serverc}
+
+  for host in ${serverb} ${serverc}
+  do
+    echo
+    echo "Cleaning up after student.myenv role on ${host}:"
+    echo
+    pad ' · Removing packages'
+    cmd1="yum erase -y ${user_pkgs}"
+    if ${ssh} ${host} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+    for user in student
+    do
+      pad " · Removing ${user} customization"
+      cmd1="rm -f ~${user}/profile.png"
+      cmd2="sed -i -e '/alias tree=/d' ~${user}/.bashrc"
+      if ${ssh} ${host} "${cmd1} && ${cmd2}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+    done
+    pad ' · Removing mkcd.sh script'
+    cmd1='rm -f /etc/profile.d/mkcd.sh'
+    if ${ssh} ${host} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo
+  echo "Cleaning up after myapache role on ${serverb}:"
+  echo
+  for host in ${serverb}
+  do
+    pad ' · Removing custom index.html'
+    cmd1='rm -f /var/www/html/index.html'
+    if ${ssh} ${host} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+    pad ' · Erasing httpd package'
+    cmd1='yum erase -y httpd'
+    if ${ssh} ${host} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+    pad ' · Closing http firewall port'
+    cmd1='firewall-cmd --remove-port 80/tcp --permanent'
+    if ${ssh} ${serverb} "${cmd1}" 
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  pad ' · Initializing role directories'
+  cmd1="ansible-galaxy init --offline -p ${working_dir}/roles student.myenv"
+  cmd2="ansible-galaxy init --offline -p ${working_dir}/roles myapache"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Moving template files into place'
+  cmd1="mv ${working_dir}/mkcd.sh.j2 ${working_dir}/roles/student.myenv/templates/"
+  cmd2="mv ${working_dir}/apache_*.j2 ${working_dir}/roles/myapache/templates/"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Copying default profile icon into place'
+  cmd1="cp ${prof_icon} ${working_dir}/roles/student.myenv/files/profile.png"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating student.myenv tasks'
+  cat <<\EOF > /tmp/tmpfile
+---
+# tasks file for student.myenv
+
+- name: check myenv_user default
+  fail:
+    msg: You must specify the variable `myenv_user` to use this role!
+  when: "myenv_user == ''"
+
+- name: install my packages
+  yum:
+    name: "{{ item }}"
+    state: installed
+  with_items: "{{ myenv_packages }}"
+
+- name: copy placeholder profile pic
+  copy:
+    src: profile.png
+    dest: "~{{ myenv_user }}/profile.png"
+
+- name: set an alias in `.bashrc`
+  lineinfile:
+    line: "alias tree='tree -C'"
+    dest: "~{{ myenv_user }}/.bashrc"
+
+- name: template out mkcd function
+  template:
+    src: mkcd.sh.j2
+    dest: /etc/profile.d/mkcd.sh
+    owner: root
+    group: root
+    mode: 0644
+EOF
+  cmd1="cat > ${working_dir}/roles/student.myenv/tasks/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating student.myenv vars'
+  cat <<\EOF > /tmp/tmpfile
+---
+# vars file for student.myenv
+
+myenv_packages:
+  - 'git'
+  - 'tree'
+  - 'vim-enhanced'
+EOF
+  cmd1="cat > ${working_dir}/roles/student.myenv/vars/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating student.myenv defaults'
+  cat <<\EOF > /tmp/tmpfile
+---
+# defaults file for student.myenv
+
+myenv_user: ''
+EOF
+  cmd1="cat > ${working_dir}/roles/student.myenv/defaults/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  cd ${working_dir}
+
+  pad ' · Creating myenv.yml playbook'
+  cat <<\EOF > /tmp/tmpfile
+---
+- name: setup my personal environment
+  hosts: all
+  roles:
+    - role: student.myenv
+      myenv_user: student
+EOF
+  cmd1="cat > ${working_dir}/myenv.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+    pad ' · Running myenv.yml playbook'
+    cmd1="ansible-playbook myenv.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myapache handlers'
+  cat <<\EOF > /tmp/tmpfile
+---
+# handlers file for myapache
+
+- name: restart apache
+  service:
+    name: httpd
+    state: restarted
+EOF
+  cmd1="cat > ${working_dir}/roles/myapache/handlers/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myapache tasks'
+  cat <<\EOF > /tmp/tmpfile
+---
+# tasks file for myapache
+
+- name: install apache package
+  yum:
+    name: httpd
+    state: latest
+
+- name: install firewall package
+  yum:
+    name: firewalld
+    state: latest
+
+- name: template out apache configuration file
+  template:
+    src: apache_httpdconf.j2
+    dest: /etc/httpd/conf/httpd.conf
+    owner: root
+    group: root
+    mode: 0444
+  notify:
+    - restart apache
+  when: apache_enable
+
+- name: template out apache index.html
+  template:
+    src: apache_indexhtml.j2
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
+    mode: 0444
+  when: apache_enable
+
+- name: start and enable apache daemon
+  service:
+    name: httpd
+    state: started
+    enabled: true
+  when: apache_enable
+
+- name: start and enable firewall daemon
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+  when: apache_enable
+
+- name: open http firewall port
+  firewalld:
+    port: 80/tcp
+    immediate: true
+    permanent: true
+    state: enabled
+  when: apache_enable
+EOF
+  cmd1="cat > ${working_dir}/roles/myapache/tasks/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myapache defaults'
+  cat <<\EOF > /tmp/tmpfile
+---
+# defaults file for myapache
+
+apache_enable: false
+EOF
+  cmd1="cat > ${working_dir}/roles/myapache/defaults/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating apache.yml playbook'
+  cat <<\EOF > /tmp/tmpfile
+---
+- name: setup apache on serverb.lab.example.com
+  hosts: serverb.lab.example.com
+  roles:  
+    - role: myapache
+      apache_enable: true
+EOF
+  cmd1="cat > ${working_dir}/apache.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+    pad ' · Running apache.yml playbook'
+    cmd1="ansible-playbook apache.yml"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the lab files from ${control_node}"
+  cmd1="rm -f ${file_list}"
+  cmd2="rm -rf ${working_dir}"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  #patch_ansible_galaxy --reverse
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

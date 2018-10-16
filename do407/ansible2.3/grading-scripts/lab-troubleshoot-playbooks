@@ -1,0 +1,178 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-troubleshoot-playbooks - grading script for DO407 Troubleshooting Playbooks Guided Exercise (Chapter 10)
+#
+# SYNOPSIS
+#     lab-troubleshoot-playbooks {setup}
+#
+#        setup   - prepare the system for starting the lab
+#
+# DESCRIPTION
+#     This script checks, in its setup verb, if the ansible package 
+#     has been installed, and creates the working directory.
+#
+# CHANGELOG
+#   * Wed Jun 28 2017 Artur Glogowski <aglogows@redhat.com>
+#   - fixed creation of ansible.cfg in the working directory
+#   * Tue Apr 29 2016 Adolfo Vazquez <avr@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/troubleshooting"
+ansible_inventory_file=inventory
+ansible_playbook_file=samba.yml
+ansible_j2_file=samba.conf.j2
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_user=devops
+ansible_target=servera.lab.example.com
+LOG=/dev/null
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup)
+
+function lab_setup {
+  reqd_package='ansible'
+
+  pad " .Checking ${ansible_target} availability:"
+  if host_reachable ${ansible_target}; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing ${reqd_package} package on ${target}"
+    if yum -y install ansible &>/dev/null; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  fi
+
+  pad " . Creating the working directory"
+  mkdir -p ${working_dir}
+  cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+  chown -R student. ${working_dir}
+  print_SUCCESS
+
+  pad " . Downloading ${ansible_inventory_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_inventory_file} -O ${working_dir}/${ansible_inventory_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Downloading ${ansible_playbook_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_playbook_file} -O ${working_dir}/${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Downloading ${ansible_j2_file}"
+  if wget http://materials.example.com/troubleshooting/${ansible_j2_file} -O ${working_dir}/${ansible_j2_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Changing permissions to the working directory"
+  chown -R student. ${working_dir}
+  print_SUCCESS
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  print_SUCCESS
+
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  print_SUCCESS
+
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${ansible_target}:"
+  echo
+  host_reachable ${ansible_target}
+
+  print_SUCCESS
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

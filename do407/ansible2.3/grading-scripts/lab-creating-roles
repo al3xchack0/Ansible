@@ -1,0 +1,459 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-creating-roles - grading script for DO407 roles practice exercise
+#
+# SYNOPSIS
+#     lab-creating-roles {setup|grade|solve|cleanup|reset}
+#
+#        setup   - create working directory with inventory and templates
+#        grade   - perform lab evaluation steps
+#        solve   - do the lab exercise for the student
+#        cleanup - remove changes applied to managed hosts
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to confirm if a student has created two Ansible
+#     roles - one configures an Apache virtual host and the other opens
+#     a service port in the firewall. The virtual host role depends upon
+#     the firewall role to open its port.
+#
+# CHANGELOG
+#   * Fri May 27 2016 George Hacker <ghacker@redhat.com>
+#   - do not require firewalld to be preinstalled on servera
+#   * Wed May 18 2016 George Hacker <ghacker@redhat.com>
+#   - lab_setup provides student with a working config and inventory
+#   * Thu Apr 14 2016 George Hacker <ghacker@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/${env}-roles"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_playbook_file=${working_dir}/use-vhost-role.yml
+ansible_user=devops
+ansible_target=servera.lab.example.com
+
+materials='http://materials.example.com/grading/roles/creating'
+file_list='vhost.conf.j2'
+
+declare -a valid_commands=(setup grade solve cleanup reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${ansible_target}
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      ${runuser} "mkdir -p ${working_dir}"
+      ${runuser} "cat  >> ${ansible_cfg_file}" << EOF
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      ${runuser} "cat >> ${ansible_hst_file}" << EOF
+[webservers]
+${ansible_target}
+EOF
+      print_SUCCESS
+      pad " · Copying lab files"
+      error_count=0
+      for file in ${file_list}
+      do
+        cmd1="curl -o ${working_dir}/${file} ${materials}/${file}"
+        if ! ${runuser} "${cmd1}" &> /dev/null
+        then
+          error_count=1
+        fi
+      done
+      if [[ ${error_count} -eq 0 ]]
+      then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    fi
+  else
+    print_FAIL
+  fi
+
+# echo
+# echo "Setting up ${ansible_target%%.*} for lab exercise work:"
+# echo
+# pad " · firewalld is installed and running"
+# cmd1='rpm -q --quiet firewalld'
+# cmd2='systemctl is-active firewalld'
+# if ${ssh} ${ansible_target} "${cmd1} && ${cmd2}" &> /dev/null
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  echo
+}
+
+function lab_grade {
+
+  lab_cleanup
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+
+  pad " · ${ansible_playbook_file##*/} playbook exists"
+  cmd1="[[ -f ${ansible_playbook_file} ]]"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_PASS
+    pad " · Running playbook"
+    cmd1="cd ${working_dir}"
+    cmd2="ansible-playbook ${ansible_playbook_file}"
+    if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+    then
+      print_PASS
+      echo
+      echo "Grading the student's work on ${ansible_target%%.*}:"
+      echo
+      pad ' · Confirming httpd installed'
+      cmd1='rpm -q --quiet httpd'
+      if ${ssh} ${ansible_target} "${cmd1}" &> /dev/null
+      then
+        print_PASS
+        pad ' · Confirming web content is available'
+        if curl http://${ansible_target} 2>&1 | grep -q 'simple index'
+        then
+          print_PASS
+        else
+          print_FAIL
+        fi
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up after myvhost role on ${ansible_target%%.*}:"
+  echo
+
+  pad ' · Removing vhost config file and directory'
+  cmd1='rm -rf /var/www/vhosts /etc/httpd/conf.d/vhost.conf'
+  if ${ssh} ${ansible_target} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  pad ' · Erasing httpd and firewalld packages'
+  cmd1='yum erase -y httpd firewalld'
+  if ${ssh} ${ansible_target} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+# pad ' · Closing http firewall port'
+# cmd1='firewall-cmd --remove-service http'
+# cmd2="${cmd1} --permanent"
+# if ${ssh} ${ansible_target} "${cmd1} && ${cmd2}" &> /dev/null
+# then
+#   print_SUCCESS
+# else
+#   print_FAIL
+# fi
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  pad ' · Initializing role directories'
+  cmd1="mkdir -p ${working_dir}/roles/myvhost/{files,handlers,meta,tasks,templates}"
+  cmd2="mkdir -p ${working_dir}/roles/myfirewall/{defaults,handlers,tasks}"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Moving template files into place'
+  cmd1="mv ${working_dir}/vhost.conf.j2 ${working_dir}/roles/myvhost/templates/"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myvhost tasks'
+  cat <<\EOF > /tmp/tmpfile
+---
+# tasks file for myvhost
+
+- name: install httpd
+  yum:
+    name: httpd
+    state: latest
+
+- name: start and enable httpd service
+  service:
+    name: httpd
+    state: started
+    enabled: true
+
+- name: deliver html content
+  copy:
+    src: html/
+    dest: "/var/www/vhosts/{{ ansible_hostname }}"
+
+- name: template vhost file
+  template:
+    src: vhost.conf.j2
+    dest: /etc/httpd/conf.d/vhost.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart httpd
+EOF
+  cmd1="cat > ${working_dir}/roles/myvhost/tasks/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myvhost handlers'
+  cat <<\EOF > /tmp/tmpfile
+---
+# handlers file for myvhost
+
+- name: restart httpd
+  service:
+    name: httpd
+    state: restarted
+EOF
+  cmd1="cat > ${working_dir}/roles/myvhost/handlers/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating html content'
+  cmd1="mkdir -p ${working_dir}/roles/myvhost/files/html"
+  cmd2="echo 'simple index' > ${working_dir}/roles/myvhost/files/html/index.html"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myfirewall tasks'
+  cat <<\EOF > /tmp/tmpfile
+---
+# tasks file for myfirewall
+
+- name: install firewalld
+  yum:
+    name: firewalld
+    state: latest
+
+- name: start and enable firewalld daemon
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: firewall services config
+  firewalld:
+    state: enabled
+    immediate: true
+    permanent: true
+    service: "{{ firewall_service }}"
+EOF
+  cmd1="cat > ${working_dir}/roles/myfirewall/tasks/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myfirewall handlers'
+  cat <<\EOF > /tmp/tmpfile
+---
+# handlers file for myfirewall
+
+- name: restart firewalld
+  service:
+    name: firewalld
+    state: restarted
+EOF
+  cmd1="cat > ${working_dir}/roles/myfirewall/handlers/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating myfirewall defaults'
+  cat <<\EOF > /tmp/tmpfile
+---
+# defaults file for myfirewall
+
+firewall_service: ssh
+EOF
+  cmd1="cat > ${working_dir}/roles/myfirewall/defaults/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  # Add dependency to meta of myvhost
+
+  pad ' · Adding myfirewall role dependency to myvhost role'
+  cat <<\EOF > /tmp/tmpfile
+---
+dependencies:
+  - { role: myfirewall, firewall_service: http }
+EOF
+  cmd1="cat > ${working_dir}/roles/myvhost/meta/main.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating use-vhost-role.yml playbook'
+  cat <<\EOF > /tmp/tmpfile
+---
+- name: use vhost role playbook
+  hosts: webservers
+
+  pre_tasks:
+    - debug:
+        msg: 'Beginning web server configuration.'
+
+  roles:
+    - myvhost
+
+  post_tasks:
+    - debug:
+        msg: 'Web server has been configured.'
+EOF
+  cmd1="cat > ${working_dir}/use-vhost-role.yml"
+  if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+    pad " · Running ${ansible_playbook_file##*/} playbook"
+    cmd1="cd ${working_dir}"
+    cmd2="ansible-playbook ${ansible_playbook_file}"
+    if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the lab files from ${control_node}"
+  cmd1="rm -f ${file_list}"
+  cmd2="rm -rf ${working_dir}"
+  if ${runuser} "${cmd1} && ${cmd2}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

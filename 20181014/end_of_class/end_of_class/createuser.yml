@@ -1,0 +1,58 @@
+---
+- name: Playbook for using a role
+  user: devops
+  become: yes
+  become_method: sudo 
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+
+  roles:
+  - examfun
+
+  tasks:
+  - name: Creating 3 groups  staff,webclients,guests
+    group:
+      name: "{{ item }}"
+      state: present
+    with_items:
+    - staff
+    - webclients
+    - guests
+
+
+  - name: creating users for staff var.
+    user:
+      name: "{{ item }}"
+      state: present
+      groups: staff,webclients
+      append: yes
+    with_items:
+    - "{{ staff }}"
+
+  - name: creating users for guests
+    user:
+      name: "{{ item }}"
+      state: present
+      groups: guests,webclients
+      append: yes
+    with_items:
+    - "{{ guests }}"
+
+  - name: Deleting users for revoke var.
+    user:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+    - "{{ revoke }}"
+...    
+
+
+
+
+
+
+
+
+
+

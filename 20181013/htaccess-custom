@@ -1,0 +1,4 @@
+AuthType Basic
+AuthNAme "Restricted Access"
+AuthUserFile /var/www/html/private/.htpasswd
+Require user ansi

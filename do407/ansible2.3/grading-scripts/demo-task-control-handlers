@@ -1,0 +1,245 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-task-control-handlers - grading script for DO407
+#
+# SYNOPSIS
+#     demo-task-control-handlers {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for managing handlers.
+#
+# CHANGELOG
+#   * Mon May 16 2016 George Hacker <ghacker@redhat.com>
+#   - changed pkg parameter for yum module to name
+#   * Thu Apr 14 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/${env}_task-control-handlers"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_playbook_file=${working_dir}/install_db.yml
+ansible_db_file=http://materials.example.com/task_control
+ansible_user=devops
+ansible_target=servera.lab.example.com
+ansible_pkgs=(mariadb-server)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Error - ${reqd_package} is not installed on ${target}"
+    print_FAIL
+  fi
+
+  pad " . Creating the working directory"
+  mkdir ${working_dir}
+  chown -R student. ${working_dir}
+  print_SUCCESS
+
+  cd ${working_dir}
+  pad " . Creating the configuration file"
+  cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Creating the hosts file"
+  cat > ${ansible_hst_file} << EOF
+[databases]
+${ansible_target}
+
+[databases:vars]
+ansible_user=devops
+ansible_become=yes
+EOF
+  if stat ${ansible_hst_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  chown -R student. ${working_dir}
+}
+
+function lab_grade {
+
+  echo
+  echo "Nothing to grade as it is a demonstration"
+  echo
+
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo "Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad " . Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  pad " . Removing my.cnf"
+  if rm -rf ${working_dir}/my.cnf.template &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+
+function lab_solve {
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  pad " . Creating the playbook"
+  cat > ${ansible_playbook_file} << EOF
+---
+- hosts: databases
+  vars:
+    db_config_file: /etc/my.cnf
+    db_package: mariadb-server
+    db_service: mariadb
+
+  tasks:
+  - yum:
+      name: "{{ db_package }}"
+      state: latest
+    notify:
+      - start_service
+
+  - copy:
+      src: /home/student/demo_task-control-handlers/my.cnf.template
+      dest:  "{{ db_config_file }}"
+      owner: mysql
+      group: mysql
+      force: yes
+    notify:
+      - restart_service
+
+  handlers:
+    - name: start_service
+      service:
+        name: "{{ db_service }}"
+        state: started
+
+    - name: restart_service
+      service:
+        name: "{{ db_service }}"
+        state: restarted
+EOF
+
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+    cd ${working_dir}
+    pad " . Retrieving my.cnf.template"
+    if wget ${ansible_db_file}/my.cnf.template &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+
+    pad " . Running the playbook"
+    if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " . Removing my.cnf on ${ansible_target}"
+  if ${ssh} -tt ${ansible_target} "sudo rm -f /etc/my.cnf" &>/dev/null; then
+    print_SUCCESS
+    pad " . Running the playbook"
+    if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  lab_cleanup
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

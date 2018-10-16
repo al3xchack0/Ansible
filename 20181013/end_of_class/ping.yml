@@ -1,0 +1,23 @@
+
+---
+- name: Playbook for tagging                    
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: creating file /var/www/html/tag1.html
+    copy:
+      dest: /var/www/html/tag1.html
+      content: "I am tag1"
+    tags: tag1
+    when: inventory_hostname in ['servera','serverc']
+
+  - name: creating file /var/www/html/tag2.html
+    copy:
+      dest: /var/www/html/tag2.html
+      content: "I am tag2"
+    tags: tag2
+    when: inventory_hostname in ['serverb','serverd']

@@ -1,0 +1,15 @@
+### Playbook for starting httpd service on all the nodes
+
+---
+- name: Playbook for starting httpd service on all the nodes
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: Starting httpd service
+    service:
+      name: httpd
+      state: started

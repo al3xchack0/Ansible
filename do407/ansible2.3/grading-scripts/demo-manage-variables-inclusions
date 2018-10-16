@@ -1,0 +1,332 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-managing-variables-inclusions - grading script for DO407
+#
+# SYNOPSIS
+#     demo-managing-variables-inclusions {setup|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the lab for managing variable inclusions.
+#
+# CHANGELOG
+#   * Mon May 16 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - changed pkg parameter for yum module to name
+#   * Wed Apr 06 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+# General
+working_dir="/home/student/${env}-vars-inclusions"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_user=devops
+ansible_target=servera.lab.example.com
+
+# Vars files
+ansible_vars_file_1=${working_dir}/paths.yml
+ansible_vars_file_2=${working_dir}/package.yml
+
+# Playbooks
+ansible_fileservers_playbook=${working_dir}/fileservers.yml
+ansible_dbservers_playbook=${working_dir}/dbservers.yml
+ansible_playbook=${working_dir}/playbook.yml
+
+# Tasks
+ansible_tasks_playbook=${working_dir}/install_package.yml
+ansible_tasks_file=${working_dir}/install_package.yml
+
+# Misc
+ansible_pkgs=(httpd mariadb-server tomcat)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[fileservers]
+${ansible_target}
+
+[dbservers]
+${ansible_target}
+
+[servers:children]
+fileservers
+dbservers
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  pad " · Creating ${ansible_vars_file_1##*/}"
+  cat > ${ansible_vars_file_1} << EOF
+---
+paths:
+  fileserver: /home/student/srv/filer/{{ ansible_fqdn }}
+  dbpath: /home/student/srv/database/{{ ansible_fqdn }}
+EOF
+  if stat ${ansible_vars_file_1} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating fileservers playbook"
+  cat > ${ansible_fileservers_playbook} << EOF
+---
+- hosts: fileservers
+  tasks:
+    - name: Import the variables file
+      include_vars: paths.yml
+
+    - name: Create the remote directory
+      file:
+        path: "{{ paths.fileserver}}"
+        state: directory
+        mode: 0755
+      register: result
+
+    - name: Debug the results
+      debug:
+        var: result
+EOF
+  if stat ${ansible_fileservers_playbook} &>/dev/null; then
+    print_SUCCESS
+
+    chown -R student ${working_dir}
+    pad " · Running playbook"
+    cd ${working_dir}
+    if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_fileservers_playbook}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating dbservers playbook"
+  cat > ${ansible_dbservers_playbook} << EOF
+---
+- hosts: dbservers
+  tasks:
+    - name: Import the variables file
+      include_vars: paths.yml
+
+    - name: Create the remote directory
+      file:
+        path: "{{ paths.dbpath}}"
+        state: directory
+        mode: 0755
+      register: result
+
+    - name: Debug the results
+      debug:
+        var: result
+EOF
+  if stat ${ansible_dbservers_playbook} &>/dev/null; then
+    print_SUCCESS
+    chown -R student ${working_dir}
+    pad " · Running playbook"
+    if ${runuser} "ansible-playbook ${ansible_dbservers_playbook}" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+  pad " · Creating ${ansible_vars_file_2##*/}"
+  cat > ${ansible_vars_file_2} << EOF
+---
+packages:
+  web_pkg: httpd
+EOF
+  if stat ${ansible_vars_file_2} &>/dev/null; then
+    print_SUCCESS
+    pad " · Creating install_package.yml"
+    cat > ${ansible_tasks_playbook} << EOF
+---
+- name: Install {{ packages.web_pkg }}
+  yum:
+    name: "{{ packages.web_pkg }}"
+    state: latest
+EOF
+  else
+    print_FAIL
+  fi
+  if stat ${ansible_tasks_playbook} &>/dev/null; then
+    print_SUCCESS
+    pad " · Creating Playbook.yml"
+    cat > ${ansible_playbook} << EOF
+---
+- hosts: fileservers
+  tasks:
+    - name: Include the variables
+      include_vars: package.yml
+
+    - name: Install the package
+      include: install_package.yml
+EOF
+    if stat ${ansible_playbook} &>/dev/null; then
+      print_SUCCESS
+      chown -R student ${working_dir}
+      pad " · Running the playbook"
+      if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_playbook}" &>/dev/null; then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  pad " · Updating Playbook.yml"
+  cat > ${ansible_playbook} << EOF
+---
+- hosts: fileservers
+  tasks:
+    - name: Include the variable
+      include_vars: package.yml
+
+    - name: Install the package
+      include: install_package.yml
+      vars:
+        packages:
+          web_pkg: tomcat
+EOF
+  if stat ${ansible_playbook} &>/dev/null; then
+    print_SUCCESS
+    chown -R student ${working_dir}
+    pad " · Running the playbook"
+    if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_playbook}" &>/dev/null; then
+      print_SUCCESS
+      echo "Ensuring packages have been installed"
+      for i in ${ansible_pkgs[@]}; do
+        pad " · Checking $i"
+        if ${ssh} ${ansible_target} "rpm -qa $i" &>/dev/null; then
+          print_SUCCESS
+        else
+          print_FAIL
+        fi
+      done
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

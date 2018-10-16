@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     rht-demo-setup - configure a student workstation for instructor demos
+#
+# SYNOPSIS
+#     rht-demo-setup
+#
+# DESCRIPTION
+#     This script configures a student's workstationX to be able to
+#     perform classroom demonstrations. It is typically used when a VT
+#     course is hosted in Ravello.
+#
+# CHANGELOG
+#   * Wed May 25 2016 George Hacker <ghacker@redhat.com>
+#   - adapted from the UCFv4 workstation rc.local script
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+
+demo_script=/usr/local/bin/demo
+demo_completion=/usr/share/bash-completion/completions/demo
+
+if [[ -x ${demo_script} ]]
+then
+  echo 'The demo script already exists on this system.'
+else
+  lab_script=/usr/local/bin/lab
+  [[ -x ${lab_script} ]] && ln -sf ${lab_script} ${demo_script}
+fi
+
+if [[ -f ${demo_completion} ]]
+then
+  echo 'Command completion has been configured for the demo command.'
+else
+  lab_completion=/usr/share/bash-completion/completions/lab
+  [[ -f ${lab_completion} ]] && ln -sf ${lab_completion} ${demo_completion}
+fi

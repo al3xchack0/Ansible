@@ -1,0 +1,39 @@
+### Playbook for deploying a webserver
+
+---
+- name: Playbook for deploying webserver
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: Installing httpd package
+    yum:
+      name: httpd
+      state: latest
+
+  - name: Downloading httpd config. file
+    get_url:
+      url:  http://classroom.example.com/pub/httpd.conf
+      dest: /etc/httpd/conf/httpd.conf
+      mode: 0644
+      owner: apache
+      group: apache
+
+  - name: Publishing landing web page
+    lineinfile:
+      path: /var/www/html/index.html
+      line: "Hello from {{ ansible_hostname }}"
+      state: present
+      create: yes
+      mode: 0644
+      owner: apache
+      group: apache
+
+  - name: Starting and enabling httpd service
+    service:
+      name: httpd
+      state: started
+      enabled: true

@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-tower-lab - script for DO407 Implementing Ansible Tower Lab (Chapter 11)
+#
+# SYNOPSIS
+#     lab-ansible-tower-lab {setup}
+#
+#        setup   - prepare the system for starting the lab
+#
+# DESCRIPTION
+#     This script setup verb checks that Ansible Tower is reachable in tower.lab.example.com
+#
+# CHANGELOG
+#   * Wed Apr 27 2016 Adolfo Vazquez <avr@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+tower_node='tower.lab.example.com'
+tower='tower'
+
+lab_dir="/home/student/ansible"
+working_dir=${lab_dir}/ansible-tower-install
+
+#declare -a valid_commands=(setup grade solve cleanup reset)
+declare -a valid_commands=(setup)
+
+function lab_setup {
+  lab_reset
+
+  echo
+  echo "Setting up ${tower_node} for lab exercise work:"
+  echo
+  host_reachable ${tower_node}
+
+  pad " . Checking if the Ansible Tower is reachable"
+  cmd1="curl -s https://tower.lab.example.com/api/v1/ping/ -k | grep tower.lab.example.com"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+      print_SUCCESS
+  else
+      print_FAIL
+  fi
+
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${control_node}:"
+  echo
+  host_reachable ${control_node}
+
+  print_SUCCESS
+}
+
+function lab_cleanup {
+
+  host_reachable ${tower}
+
+  lab_reset
+
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  print_SUCCESS
+
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  print_SUCCESS
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

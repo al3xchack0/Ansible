@@ -1,0 +1,67 @@
+    1  ls
+    2  sudo vim /etc/ansible/ansible.cfg 
+    3  cd /opt/ansible/dynamic/inventory/
+    4  ls
+    5  chmod a+x *.py
+    6  sudo chmod a+x *.py
+    7  ll
+    8  ansible all --list-hosts
+    9  vim hosts 
+   10  ./rabbitsa.py 
+   11  ./rabbitsa.py --list
+   12  ll
+   13  mv rabbitsa.py arabbits.py
+   14  sudo mv rabbitsa.py arabbits.py
+   15  ll
+   16  ansible all --list-hosts
+   17  ansible majori --list-hosts
+   18  ansible all -m yum -a 'name=httpd state=latest'
+   19  vim ~/.vimrc
+   20  cd
+   21  ls
+   22  cd playbooks/
+   23  ls
+   24  sudo vim /etc/ansible/ansible.cfg 
+   25  vim role2install.yml
+   26  cat role2install.yml
+   27  ansible-galaxy install --help
+   28  ansible-galaxy install -r role2install.yml 
+   29  cat role2install.yml 
+   30  cd /etc/ansible/roles/examfun/
+   31  ls
+   32  vim tasks/main.yml 
+   33  vim handlers/main.yml 
+   34  vim defaults/main.yml 
+   35  vim vars/main.yml 
+   36  cd
+   37  cd playbooks/
+   38  vim createuser.yml
+   39  vim /etc/ansible/roles/examfun/vars/main.yml 
+   40  vim createuser.yml
+   41  ansible-playbook createuser.yml --syntax-check
+   42  ansible-playbook createuser.yml 
+   43  ls
+   44  head createuser.yml > failweb.yml
+   45  vim failweb.yml
+   46  ansible-playbook failweb.yml
+   47  vim failweb.yml
+   48  ansible-playbook failweb.yml --syntax-check
+   49  ansible-playbook failweb.yml 
+   50  vim failweb.yml
+   51  ansible-playbook failweb.yml 
+   52  vim failweb.yml
+   53  vim encrypt.yml
+   54  cat encrypt.yml
+   55  cat > .vaultpwd
+   56  ansible-vault encrypt encrypt.yml --vault-password-file=.vaultpwd
+   57  ansible-vault view encrypt.yml --vault-password-file=.vaultpwd
+   58  cat encrypt.yml 
+   59  head createuser.yml > unarchive.yml
+   60  vim unarchive.yml
+   61  ansible-playbook unarchive.yml 
+   62  ansible-playbook --help
+   63  ansible-playbook unarchive.yml  --vault-password-file=.vaultpwd
+   64  cd ..
+   65  history 
+   66  history  > histlist.txt
+   67  history  > histlist_exam.txt

@@ -1,0 +1,3 @@
+    1  lab ansible-vagrant-practice setup 
+    2  lab ansible-devops-practice setup 
+    3  history > histlist.txt

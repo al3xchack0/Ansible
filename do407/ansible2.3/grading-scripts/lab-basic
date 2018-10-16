@@ -1,0 +1,158 @@
+#!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# NAME
+#     lab-playbook - grading script for DO407 playbook practice
+#
+# SYNOPSIS
+#     lab-playbook {setup|grade|cleanup|solve|reset}
+#
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab
+#
+# CHANGELOG
+#   * Tue Jul 11 2017 Artur Glogowski <aglogows@redhat.com>
+#   - Original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+targetw='workstation'
+targetc='serverc'
+targetd='serverd'
+
+target=${targetw}
+labname=basic
+
+lab_dir='/home/student/basic-playbook'
+ansible_cfg="${lab_dir}/ansible.cfg"
+ansible_inventory="${lab_dir}/inventory"
+ansible_page="${lab_dir}/index.html"
+url='http://servera.lab.example.com'
+playbook="${lab_dir}/site.yml"
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup solve)
+
+function lab_setup {
+
+  target=${targetw}
+
+  reqd_package='ansible'        # Just an example
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${targeta}
+
+
+  pad ' · Verifying Ansible installation'
+
+  if ! ${ssh} ${target} "rpm -q --quiet ${reqd_package}"
+  then
+    if ${ssh} ${target} "yum install -y ${reqd_package}" &> /dev/null
+    then
+     print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_SUCCESS
+  fi
+
+  pad ' · Creating working directory'
+
+  cmd1="mkdir ${lab_dir}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible inventory'
+
+  file="${ansible_inventory}"
+  cmd1="curl http://materials.example.com/grading/${file} > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying Ansible configuration'
+
+  file="${ansible_cfg}"
+  cmd1="curl http://materials.example.com/grading/${file} > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS && su - student -c "mkdir ${lab_dir}/files"
+  else
+    print_FAIL
+  fi
+
+  pad ' · Deploying index.html'
+
+  cmd1="curl http://materials.example.com/grading/home/student/basic-playbook/index-html > /home/student/basic-playbook/files/index.html"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+}
+
+function lab_solve {
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+  su - student -c "${ssh} ${target} 'mv ${labdir}/site.yml ${labdir}/site.yml_ORG'"
+
+  pad ' · Installing playbook on control node'
+  cmd1="curl http://materials.example.com/grading/home/student/basic-playbook/site.yml > /home/student/basic-playbook/site.yml"
+  if su - student -c "${ssh} ${target} '${cmd1}'" 
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Executing playbook on control node'
+  file="${playbook}"
+  cmd1="cd ${lab_dir}; ansible-playbook ${playbook}"
+
+  if su - student -c "${ssh} ${target} \"${cmd1}\"" 
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

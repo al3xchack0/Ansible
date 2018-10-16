@@ -1,0 +1,303 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-execute-ansible-vault - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     demo-execute-ansible-vault {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Wed May 31 2016 George Hacker <ghacker@redhat.com>
+#   - fixed broken password hash (512 -> sha512)
+#   * Fri Apr 8 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - changed it to run_as_root='false'
+#   * Mon Apr 4 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+#run_as_root='true'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+lab_dir="/home/student"
+working_dir="${lab_dir}/exec-ansible-vault"
+ansible_vars_dir="${working_dir}/vars"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory/hosts
+ansible_vault_file=${ansible_vars_dir}/secret.yml
+ansible_user=devops
+ansible_target=servera.lab.example.com
+#ansible_pkgs=(httpd firewalld python-httplib2)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup cleanup solve reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+  host_reachable ${ansible_target}
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    echo "student" | sudo -S yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  mkdir -p ${working_dir}/${ansible_vars_dir} &>/dev/null
+  mkdir ${working_dir}/inventory &>/dev/null
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating host file"
+  cat > ${ansible_hst_file} << EOF
+[devservers]
+${ansible_target}
+EOF
+  if stat ${ansible_hst_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating Playbook to add users"
+  cat > ${working_dir}/create_users.yml <<EOF
+---
+- name: create user accounts for all our servers
+  hosts: devservers
+  remote_user: devops
+  become: yes
+  vars_files:
+    - vars/secret.yml
+  tasks:
+    - name: Creating users from secret.yml
+      user:
+        name: "{{ item.name }}"
+        password: "{{ item.pw | password_hash('sha512') }}"
+      with_items: "{{ newusers }}"
+EOF
+  if stat ${working_dir}/create_users.yml &>/dev/null;then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi  
+
+  echo
+  print_SUCCESS
+}
+
+function lab_grade {
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+  host_reachable ${target}
+
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  if ${ssh} root@${ansible_target} "id -u ansibleuser1 && id -u ansibleuser2" &>/dev/null;then
+     if [ ! -d ${working_dir} ];then
+      mkdir -p ${working_dir}/inventory
+    fi  
+    cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+    cat > ${ansible_hst_file} << EOF
+[devservers]
+${ansible_target}
+EOF
+    cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+    cat > ${ansible_hst_file} << EOF
+[devservers]
+${ansible_target}
+EOF
+    cat > ${working_dir}/delete_users.yml <<EOF
+---
+- name: delete user accounts created by this lab
+  hosts: devservers
+  remote_user: devops
+  become: yes
+  tasks:
+    - name: deleting users
+      user:
+        name: {{ item }}
+        state: absent
+        force: yes
+        remove: yes
+      with_items:
+        - demouser1
+        - demouser2
+EOF
+    cd ${working_dir}
+    if ansible-playbook delete_users.yml &>/dev/null;then
+       print_SUCCESS
+    else
+       print_FAIL
+    fi
+  else
+    print_SUCCESS
+  fi
+
+  cd ..
+  rm -rf ${working_dir}/delete_users.yml &>/dev/null
+
+}
+
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+ 
+  cd ${working_dir} &>/dev/null
+  pad " . Storing password in encrypted secret.yml"
+  cat > ${ansible_vault_file} <<EOF
+demouser1_pw: redhat
+demouser2_pw: RedHat
+EOF
+  echo "redhat" > vault-pass-solve
+  if ansible-vault encrypt --vault-password-file=vault-pass-solve ${ansible_vault_file} &>/dev/null; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Creating vault password file"
+  echo "redhat" > vault-pass
+  chmod 0600 vault-pass
+  if stat ${working_dir}/vault-pass &>/dev/null; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Run the playbook to add users"
+  if ansible-playbook --vault-password-file=vault-pass create_users.yml &>/dev/null; then
+     print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  rm -rf ${working_dir}/vault-pass-solve
+}
+
+function lab_reset {
+
+  echo
+  echo "Resetting the lab on ${target}:"
+  echo
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  if ${ssh} root@${ansible_target} "id -u ansibleuser1 && id -u ansibleuser2" &>/dev/null; then
+    if [ ! -d ${working_dir} ];then
+      mkdir -p ${working_dir}/inventory
+    fi
+    cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF
+    cat > ${ansible_hst_file} << EOF
+[devservers]
+${ansible_target}
+EOF
+
+    cat > ${working_dir}/delete_users.yml <<EOF
+---
+- name: delete user accounts created by this lab
+  hosts: devservers
+  remote_user: devops
+  become: yes
+  tasks:
+    - name: deleting users
+      user:
+        name: {{ item }}
+        state: absent
+        force: yes
+        remove: yes
+      with_items:
+        - demouser1
+        - demouser2
+EOF
+    cd ${working_dir}
+    if ansible-playbook delete_users.yml &>/dev/null;then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  else
+     print_SUCCESS
+  fi
+
+  cd ..
+  pad " . Removing  the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

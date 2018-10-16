@@ -1,0 +1,18 @@
+list --all
+destroy server
+destroy desktop
+list --all
+exit
+exit
+help
+list all
+list --all
+domname 
+domname server
+list --all
+destroy desktop
+list --all
+start desktop
+list --all
+list 
+exit

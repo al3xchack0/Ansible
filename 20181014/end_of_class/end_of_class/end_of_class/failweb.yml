@@ -1,0 +1,53 @@
+---
+- name: Playbook for testing conditionals
+  user: devops
+  become: yes
+  become_method: sudo 
+  become_user: root
+  gather_facts: True
+  hosts: servera
+  tasks:
+  - name: Installing ex407-server package
+    yum:
+      name: ex407-server
+      state: present
+    register: op_pkg      
+    ignore_errors: true
+
+  - name: Starting ex407-server service
+    service:
+      name: ex407-server
+      state: started
+    register: op_svc      
+    ignore_errors: true
+
+  - name: Printing op of installation
+    debug:
+      var: op_pkg
+
+  - name: Displaying OP of service starting
+    debug:
+      var: op_svc
+
+  - name: Printing a installation failed
+    debug:
+      msg: "Install Failed"
+    #when: 'op_pkg.failed == true'      
+    when: 'op_pkg|failed'      
+
+  - name: printing msg for service fail 
+    debug:
+      msg: "service start failed"
+    #when: 'op_svc.failed = true'      
+    when: 'op_svc|failed'      
+
+  - name: Printing mesage for both installation and service fail
+    debug:
+      msg: "playbook failed"
+    #when: 'op_pkg.failed == true and op_svc.failed == true'
+    when: 'op_pkg|failed and op_svc|failed'
+...    
+
+
+
+

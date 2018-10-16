@@ -1,0 +1,172 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-ansible-galaxy - demo script for DO407 ansible galaxy section
+#
+# SYNOPSIS
+#     demo-ansible-galaxy {setup|cleanup|reset}
+#
+#        setup   - create ansible.cfg, inventory, and playbook on workstation
+#        cleanup - remove changes applied to servera
+#        reset   - same as cleanup + remove Ansible files on workstation
+#
+# DESCRIPTION
+#     This script is used to setup the Ansible Galaxy demo.
+#
+# CHANGELOG
+#   * Wed Apr 20 2016 George Hacker <ghacker@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+cd ~student
+
+control_node='workstation'
+servera='servera'
+
+roles_dir='ansible-galaxy-demo'
+galaxy_role='davidkarban.git'
+
+declare -a valid_commands=(setup cleanup reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${control_node}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+    if ! rpm -q --quiet tree
+    then
+      pad " · Installing tree package on ${control_node}"
+      if yum -y install tree &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+    fi
+    pad ' · Creating directory structure'
+    cmd1="mkdir -p ${roles_dir}/roles"
+    if ${runuser} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+      pad ' · Creating inventory file'
+      cat << EOF > /tmp/tmpfile
+${servera}.lab.example.com
+EOF
+      cmd1="cat > ${roles_dir}/inventory"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating ansible.cfg file'
+      cat << EOF > /tmp/tmpfile
+[defaults]
+inventory  = inventory
+#roles_path = roles
+EOF
+      cmd1="cat > ${roles_dir}/ansible.cfg"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+      pad ' · Creating use-git-role.yml playbook'
+      cat << EOF > /tmp/tmpfile
+---
+- name: use ${galaxy_role} role playbook
+  hosts: ${servera}.lab.example.com
+  user: devops
+  become: true
+
+  roles:
+    - ${galaxy_role}
+EOF
+      cmd1="cat > ${roles_dir}/use-git-role.yml"
+      if cat /tmp/tmpfile | ${runuser} "${cmd1}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up after ${galaxy_role} role on ${servera}:"
+  echo
+  host_reachable ${servera}
+
+  pad ' · Removing git package'
+  cmd1='yum -y erase git'
+  if ${ssh} ${servera} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad ' · Removing the demo files'
+  cmd1="rm -rf ${roles_dir}"
+  if ${runuser} "${cmd1}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+# if rpm -q --quiet tree
+# then
+#   pad ' · Removing tree package'
+#   if yum -y erase tree &> /dev/null
+#   then
+#     print_SUCCESS
+#   else
+#     print_FAIL
+#   fi
+# fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

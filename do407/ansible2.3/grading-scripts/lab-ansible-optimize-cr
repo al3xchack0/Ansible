@@ -1,0 +1,483 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     lab-ansible-optimize-cr - grading script for DO407 awesome lab
+#
+# SYNOPSIS
+#     lab-ansible-optimize-cr {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Fri Jun 23 2017 Artur Glogowski <aglogows@redhat.com>
+#   - change to run as root and moved the GE from workstation 
+#   * Mon Apr 19 2016 Snehangshu Karmakar <snehk@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+env="lab"
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/ansible-optimize-cr
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory/hosts
+ansible_user=devops
+ansible_target=serverb.lab.example.com
+#ansible_pkgs=(httpd firewalld python-httplib2)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup grade cleanup solve reset)
+
+function lab_setup {
+  lab_reset
+  reqd_package='ansible'
+
+  print_header "Setting up ${target} for lab exercise work:"
+  host_reachable ${target}
+  host_reachable servera.lab.example.com
+  host_reachable serverb.lab.example.com
+  host_reachable serverc.lab.example.com
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    echo "student" | sudo -S yum install -y ${reqd_package}
+    print_SUCCESS
+  fi
+
+  
+  if [ -d ${working_dir} ];then
+    pad " . Taking backup of the existing work done"
+    TIME=`date +%b-%d-%y`
+    ${runuser} "rm -rf ${working_dir}.bak*"
+    ${runuser} "mv ${working_dir} ${working_dir}.bak-${TIME}"
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir}"
+  ${runuser} "mkdir ${working_dir}/inventory"
+  ${runuser} "mkdir ${working_dir}/templates"
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+  if stat ${ansible_cfg_file}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating host file"
+  ${runuser} "cat > ${ansible_hst_file} << EOF
+[webservers]
+servera.lab.example.com
+serverb.lab.example.com
+
+[lbserver]
+serverc.lab.example.com
+EOF"
+  if stat ${ansible_hst_file}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+  
+  pad " . Creating playbook and associated templates"
+  ${runuser} "cat > ${working_dir}/templates/haproxy.cfg.j2 <<EOF
+global
+    log         127.0.0.1 local2
+
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        root
+    group       root
+    daemon
+
+    # turn on stats unix socket
+    stats socket /var/lib/haproxy/stats level admin
+
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+
+frontend main
+    {% for host in groups['lbserver'] %}
+      bind  {{ host }}:80
+    {% endfor %}
+    default_backend app
+backend app
+    balance roundrobin
+    {% for backend in groups['webservers'] %}
+      {% set iface = 'eth0' %}
+      server {{ hostvars[backend]['inventory_hostname'] }} {{ hostvars[backend].ansible_eth0.ipv4.address }} check port 80
+    {% endfor %}
+EOF"
+  ${runuser} "cat > ${working_dir}/templates/index.html.j2 <<EOF
+<html>
+<head><title>My Page</title></head>
+<body>
+<h1>
+Welcome to {{ inventory_hostname }}.
+</h1>
+</body>
+</html>
+EOF"
+  cd ${working_dir}
+  ${runuser} "curl -s -O http://materials.example.com/playbooks/chapter8-lab.yml"
+  if ansible-playbook --syntax-check chapter8-lab.yml;then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+
+  pad " . Running the playbook to setup lab environment"
+  if ansible-playbook chapter8-lab.yml;then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+  
+  pad " . Verifying the environment"
+  ${runuser} "curl --retry 2 -s http://serverc.lab.example.com -o /home/student/test.txt"
+  if grep '<head><title>My Page</title></head>' /home/student/test.txt; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+  rm -rf /home/student/test.txt ${working_dir}/chapter8-lab.yml ${working_dir}/templates/*.j2
+
+  print_line
+}
+
+function lab_grade {
+
+  print_header "Grading the student's work on ${target}:"
+  host_reachable ${target}
+  
+  print_line "Checking files"
+  pad " . Ensuring template file exists"
+  if stat ${working_dir}/templates/index-ver1.html.j2;then
+     print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring playbook file exists"
+  if stat ${working_dir}/upgrade_webserver.yml;then
+     print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring playbook uses rolling updates with correct values"
+  if grep 'serial: 1' ${working_dir}/upgrade_webserver.yml; then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Ensuring playbook uses asynchronous tasks"
+  if grep 'async: 1' ${working_dir}/upgrade_webserver.yml && grep 'poll: 0' ${working_dir}/upgrade_webserver.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  pad " . Ensuring playbook uses delegation"
+  if grep 'delegate_to' ${working_dir}/upgrade_webserver.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+
+  pad " . Checking playbook syntax"
+  if ansible-playbook --syntax-check ${working_dir}/upgrade_webserver.yml; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+ 
+  print_line "Verifying the tasks performed by playbook"
+  pad " . Checking if loadbalancer is serving the new page"
+  ${runuser} "curl -s http://serverc.lab.example.com -o test.txt"
+  if grep 'A new feature added.' test.txt; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+  rm -rf test.txt
+ 
+  pad " . Checking if the web servers have correct content"
+  ${runuser} "curl -s http://servera.lab.example.com -o testservera.txt"
+  ${runuser} "curl -s http://serverb.lab.example.com -o testserverb.txt"
+  if grep 'servera' testservera.txt && grep 'A new feature added.' testservera.txt && grep 'serverb' testserverb.txt && grep 'A new feature added.' testserverb.txt; then
+     print_PASS
+  else
+     print_FAIL
+  fi
+  rm -rf test*.txt
+  # Overall grade
+  print_line
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi  
+
+  print_line  
+}
+
+function lab_cleanup {
+
+  print_header "Cleaning up the lab on ${target}:"
+  host_reachable ${target}
+  
+  pad " . Undoing the playbook tasks"
+  ${runuser} "curl -s http://serverc.lab.example.com -o test.txt"
+  if grep '<head><title>My Page</title></head>' test.txt; then
+    if [ ! -d ${working_dir} ];then
+      ${runuser} "mkdir -p ${working_dir}/inventory"
+    fi
+    rm -rf test.txt
+    ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+    ${runuser} "cat > ${ansible_hst_file} << EOF
+[webservers]
+servera.lab.example.com
+serverb.lab.example.com
+
+[lbserver]
+serverc.lab.example.com
+EOF"
+
+${runuser} "cat > ${working_dir}/delete-weblb.yml <<EOF
+---
+# This playbook removes HAProxy and HTTPd and configures it.
+#
+- name: Removes haproxy and httpd.
+  hosts: all
+  remote_user: devops
+  become: yes
+
+  tasks:
+    - name: Stop the haproxy service
+      service: name=haproxy state=stopped enabled=no
+      when: inventory_hostname in groups['lbserver']
+
+    - name: Stop and disable httpd
+      service: name=httpd state=stopped enabled=no
+      when: inventory_hostname in groups['webservers']
+
+    - name: Remove httpd
+      yum: name=httpd state=absent
+      when: inventory_hostname in groups['webservers']
+
+    - name: Remove haproxy
+      yum: name={{ item }} state=absent
+      with_items:
+        - haproxy
+      when: inventory_hostname in groups['lbserver']
+
+    - name: Delete the index.html
+      file: name=/var/www/html/index.html state=absent
+      when: inventory_hostname in groups['webservers']
+
+    - name: Disable firewall
+      firewalld: service=http permanent=true state=disabled immediate=true
+      when: inventory_hostname in groups['webservers']
+EOF"
+  cd ${working_dir}
+    if ansible-playbook delete-weblb.yml; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  else
+        print_SUCCESS
+  fi
+
+
+  pad " . Removing the cleanup files"
+  if rm -rf ${working_dir}/delete-weblb.yml ; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+}
+
+
+function lab_solve {
+
+  #lab_reset
+  #lab_setup
+
+  print_header "Solving the lab on ${target}:"
+
+  pad " . Creating new index.html template"
+  ${runuser} "cat > ${working_dir}/templates/index-ver1.html.j2 <<EOF
+<html>
+<head><title>My Page</title></head>
+<body>
+<h1>
+Welcome to {{ inventory_hostname }}.
+</h1>
+<h2>A new feature added.</h2>
+</body>
+</html>
+EOF"
+ if stat ${working_dir}/templates/index-ver1.html.j2; then
+    print_SUCCESS
+ else
+    print_FAIL
+ fi
+ 
+  pad " . Creating playbook upgrade_webserver.yml"
+  ${runuser} "curl -s http://materials.example.com/playbooks/upgrade_webserver.yml -o ${working_dir}/upgrade_webserver.yml"
+  if stat ${working_dir}/upgrade_webserver.yml; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " . Run the playbook upgrade_webserver.yml"
+  cd ${working_dir}
+  if ansible-playbook upgrade_webserver.yml; then
+     print_SUCCESS
+  else
+     print_FAIL
+  fi
+ 
+}
+
+function lab_reset {
+
+  print_header "Resetting the lab on ${target}:"
+  host_reachable ${target}
+
+  pad " . Undoing the playbook tasks"
+  ${runuser} "curl -s http://serverc.lab.example.com -o test.txt"
+  if grep '<head><title>My Page</title></head>' test.txt; then
+    if [ ! -d ${working_dir} ];then
+      ${runuser} "mkdir -p ${working_dir}/inventory"
+    fi
+    rm -rf test.txt
+    ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+    ${runuser} "cat > ${ansible_hst_file} << EOF
+[webservers]
+servera.lab.example.com
+serverb.lab.example.com
+
+[lbserver]
+serverc.lab.example.com
+EOF"
+
+${runuser} "cat > ${working_dir}/delete-weblb.yml <<EOF
+---
+# This playbook removes HAProxy and HTTPd and configures it.
+#
+- name: Removes haproxy and httpd.
+  hosts: all
+  remote_user: devops
+  become: yes
+
+  tasks:
+    - name: Stop the haproxy service
+      service: name=haproxy state=stopped enabled=no
+      when: inventory_hostname in groups['lbserver']
+
+    - name: Stop and disable httpd
+      service: name=httpd state=stopped enabled=no
+      when: inventory_hostname in groups['webservers']
+
+    - name: Remove httpd
+      yum: name=httpd state=absent
+      when: inventory_hostname in groups['webservers']
+
+    - name: Remove haproxy
+      yum: name={{ item }} state=absent
+      with_items:
+        - haproxy
+      when: inventory_hostname in groups['lbserver']
+
+    - name: Delete the index.html
+      file: name=/var/www/html/index.html state=absent
+      when: inventory_hostname in groups['webservers']
+
+    - name: Disable firewall
+      firewalld: service=http permanent=true state=disabled immediate=true
+      when: inventory_hostname in groups['webservers']
+EOF"
+  cd ${working_dir}
+    if ansible-playbook delete-weblb.yml; then
+        print_SUCCESS
+    else
+        print_FAIL
+    fi
+  else
+        print_SUCCESS
+  fi
+  cd ~
+
+  pad " . Removing the cleanup files"
+  if rm -rf ${working_dir}/delete-weblb.yml; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

@@ -1,0 +1,291 @@
+#!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# NAME
+#     lab-deploy - grading script for DO407 deploy practice
+#
+# SYNOPSIS
+#     lab-deploy {setup|grade|cleanup|solve|reset}
+#
+#        grade   - perform evaluation steps on the system
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab of awesomeness.
+#
+# CHANGELOG
+#   * Thu Jul 6 2017 Artur Glogowski <aglogows@redhat.com>
+#   - Modified to run in the new DO407 environment
+#   * Mon May  2 2016 George Hacker <ghacker@redhat.com>
+#   - Changed print_SUCCESS to print_PASS in lab_grade function
+#   * Sun Apr  3 12:51:14 EDT 2016 Chen Chang <cchang@redhat.com>
+#   - New script
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+targetw='workstation'
+targeta='servera'
+targetb='serverb'
+targetc='serverc'
+targetd='serverd'
+
+labname=lab
+
+lab_dir='/home/student/dep-lab'
+ansible_cfg="${lab_dir}/ansible.cfg"
+ansible_inv="${lab_dir}/inventory"
+ansible_static_inv="${lab_dir}/inventory/inventory"
+ansible_dynamic_inv="${lab_dir}/inventory/binventory.py"
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup solve grade cleanup reset)
+
+function lab_setup {
+  cd
+  control_node=${targetw}
+
+  # Check for lab prerequisites (perhaps a required package?).
+
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+  host_reachable ${targeta}
+  host_reachable ${targetb}
+  host_reachable ${targetc}
+  host_reachable ${targetd}
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if rpm -q --quiet ${reqd_package}
+  then
+    print_SUCCESS
+  else
+    if yum install -y ${reqd_package} &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  echo
+}
+
+function lab_solve {
+  cd
+  target=${targetw}
+
+  lab_reset
+  lab_setup
+
+  host_reachable ${targeta}
+  host_reachable ${targetb}
+  host_reachable ${targetc}
+  host_reachable ${targetd}
+
+  echo
+  echo "Solving the lab on ${target}:"
+  echo
+
+
+  pad ' · Creating working directory'
+
+  cmd1="mkdir -p ${lab_dir}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating Ansible configuration file'
+
+  file="${ansible_cfg}"
+  cmd1="curl http://materials.example.com/grading/$file > $file"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+  pad ' · Creating Ansible inventory directory'
+
+  cmd1="mkdir -p ${ansible_inv}"
+
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Creating Ansible static inventory file'
+
+  cmd1="cd ${lab_dir}; curl http://materials.example.com/dynamic/inventory > inventory/inventory"
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS && su - student -c 'echo "internetweb">>~/dep-lab/inventory/inventory'
+  else
+    print_FAIL
+  fi
+
+
+
+  pad ' · Creating Ansible dynamic inventory file'
+
+  cmd1="cd ${lab_dir}; curl http://materials.example.com/dynamic/binventory.py > inventory/binventory.py && chmod 755 inventory/binventory.py"
+  if su - student -c "${ssh} ${target} '${cmd1}'" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Executing ad hoc command'
+
+  #cmd1="cd ${lab_dir}&& ansible everyone -m copy -a 'content="This server is managed by Ansible.\n" dest=/etc/motd' --become"
+
+  #if su - student -c "${ssh} ${target} \"${cmd1}\"" &> /dev/null
+  if cd ${lab_dir} && ansible everyone -m copy -a 'content="This server is managed by Ansible.\n" dest=/etc/motd' --become
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+
+  echo
+
+}
+
+function lab_grade {
+
+  target=${targetw}
+
+  host_reachable ${targetb}
+
+  echo
+  echo "Grading the student's work on ${target}:"
+  echo
+
+  # Put in the steps to grade the lab (use print_PASS or print_FAIL)
+
+
+  pad " · Verify active configuration file"
+
+  cmd1="cd ${lab_dir}; ansible --version -v 2>&1 | awk -F' = ' '/config file/{print \\\$2}'"
+  active_ansible_cfg=$(su - student -c "${ssh} ${target} \"${cmd1}\"")
+
+  if [[ "${active_ansible_cfg}" == "${ansible_cfg}" ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  
+  pad " . Verify servera /etc/motd"
+  cd ${lab_dir}; ansible servera.lab.example.com -m command -a 'cat /etc/motd'|grep -E "\<This server is managed by Ansible\>"
+  if [[ $? == 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Verify serverb /etc/motd"
+  cd ${lab_dir}; ansible serverb.lab.example.com -m command -a 'cat /etc/motd'|grep -E "\<This server is managed by Ansible\>"
+  if [[ $? == 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  pad " . Verify serverc /etc/motd"
+  cd ${lab_dir}; ansible serverc.lab.example.com -m command -a 'cat /etc/motd'|grep -E "\<This server is managed by Ansible\>"
+  if [[ $? == 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+  pad " . Verify serverd /etc/motd"
+  cd ${lab_dir}; ansible serverd.lab.example.com -m command -a 'cat /etc/motd'|grep -E "\<This server is managed by Ansible\>"
+  if [[ $? == 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+
+  # Overall grade
+  echo
+  pad 'Overall lab grade'
+  if [[ ${fail_count} -eq 0 ]]
+  then
+    print_PASS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  target=${targetw}
+
+  host_reachable ${targetb}
+
+  echo
+  echo "Cleaning up the lab on ${targetw}:"
+  echo
+
+  echo
+}
+
+
+function lab_reset {
+  cd
+  target=${targetw}
+
+  host_reachable ${targetb}
+
+  echo
+  echo "Resetting the lab on ${targetw}:"
+  echo
+
+
+  pad ' · Remove working directory'
+
+  cmd1="rm -rf ${lab_dir}"
+
+  ${ssh} ${target} ${cmd1} &> /dev/null
+  print_SUCCESS
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

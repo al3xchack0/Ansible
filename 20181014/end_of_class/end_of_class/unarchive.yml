@@ -1,0 +1,26 @@
+---
+- name: Playbook for decryption using vault
+  user: devops
+  become: yes
+  become_method: sudo 
+  become_user: root
+  gather_facts: True
+  vars_files:
+  - encrypt.yml
+  hosts: server[a-d]
+  tasks:
+  - name: Creating /var/www/html/confidential
+    file:
+      path: /var/www/html/confidential
+      state: directory
+
+  - name: Download zip file
+    get_url:
+      url: http://classroom.example.com/pub/vault.zip
+      dest: /var/www/html/confidential
+
+  - name: Executing command for unzipping the archive
+    shell: unzip -o -P {{ password }} vault.zip
+    args:
+      chdir: /var/www/html/confidential
+... 

@@ -1,0 +1,16 @@
+### Playbook for stopping httpd service on node1 & node4
+
+---
+- name: Playbook for stopping httpd service on node1 and node4
+  user: devops
+  become: True
+  become_method: sudo
+  become_user: root
+  gather_facts: True
+  hosts: server[a-d]
+  tasks:
+  - name: Stopping httpd service
+    service:
+      name: httpd
+      state: stopped
+    when: inventory_hostname in ['servera','serverd']

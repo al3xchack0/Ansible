@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     demo-manage-variables-facts - grading script for DO407
+#
+# SYNOPSIS
+#     demo-manage-variables-facts {setup|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#        solve   - do the lab exercise for the student (may call setup)
+#        reset   - avoid resetting a machine (not preferred)
+#        (ONLY INCLUDE PROVIDED COMMANDS, REMOVE REST)
+#
+# DESCRIPTION
+#     This script, based on singular argument, either does setup, grading,
+#     cleanup, reset, or solve for the particular lab for managing variables.
+#
+# CHANGELOG
+#   * Mon May 16 2016 George Hacker <ghacker@redhat.com>
+#   - lab_cleanup no longer removes the student's work
+#   - lab_setup provides student with a working config and inventory
+#   - changed pkg parameter for yum module to name
+#   * Wed Apr 06 2016 Razique Mahroua <rmahroua@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+
+control_node='workstation'
+
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+working_dir="/home/student/${env}-vars-facts"
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_playbook_file=${working_dir}/playbook.yml
+ansible_facts_playbook_file=${working_dir}/setup_facts.yml
+ansible_local_fact_file=${working_dir}/custom.fact
+ansible_remote_fact_file=/etc/ansible/facts.d/custom.fact
+ansible_user=devops
+ansible_target=servera.lab.example.com
+ansible_pkgs=(httpd mariadb-server)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+declare -a valid_commands=(setup cleanup solve reset)
+
+function lab_setup {
+
+  reqd_package='ansible'
+  host_reachable ${control_node}
+  echo
+  echo "Setting up ${control_node} for lab exercise work:"
+  echo
+
+  pad " · ${reqd_package} package is installed on ${control_node}"
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    print_FAIL
+  else
+    print_SUCCESS
+    if [[ ! -d ${working_dir} ]]
+    then
+      pad " · Creating the working directory"
+      mkdir -p ${working_dir}
+      cat << EOF >> ${ansible_cfg_file}
+[defaults]
+inventory   = ${ansible_hst_file##*/}
+remote_user = ${ansible_user}
+
+[privilege_escalation]
+become      = true
+EOF
+      cat << EOF >> ${ansible_hst_file}
+[lamp]
+${ansible_target}
+EOF
+      chown -R student ${working_dir}
+      print_SUCCESS
+    fi
+  fi
+
+  echo
+}
+
+function lab_cleanup {
+
+  host_reachable ${ansible_target}
+  echo
+  echo "Cleaning up the lab on ${ansible_target}:"
+  echo
+
+  echo " · Removing packages"
+  for i in "${ansible_pkgs[@]}"; do
+    pad "   · Removing $i"
+    if ${ssh} ${ansible_target} yum -y remove "$i" &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  done
+
+  echo
+}
+
+function lab_solve {
+
+  lab_reset
+  lab_setup
+
+  echo
+  echo "Solving the lab on ${control_node}:"
+  echo
+
+  pad " · Creating ${ansible_local_fact_file}"
+  cat > ${ansible_local_fact_file} << EOF
+[packages]
+web_package: httpd
+db_package: mariadb-server
+EOF
+  if stat ${ansible_local_fact_file} &>/dev/null; then
+    print_SUCCESS
+    pad " · Creating ${ansible_facts_playbook_file}"
+    cat > ${ansible_facts_playbook_file} << EOF
+---
+- name: Install remote facts
+  hosts: lamp
+  vars:
+    remote_dir: /etc/ansible/facts.d
+    facts_file: custom.fact
+  tasks:
+    - name: Create the remote directory
+      file:
+        state: directory
+        recurse: yes
+        path: "{{ remote_dir }}"
+    - name: Install the new facts
+      copy:
+        src: "{{ facts_file }}"
+        dest: "{{ remote_dir }}"
+EOF
+    if stat ${ansible_facts_playbook_file} &>/dev/null; then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  chown -R student ${working_dir}
+  pad " · Installing facts"
+  cd ${working_dir}
+  if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_facts_playbook_file}" &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad " · Creating ${ansible_playbook_file}"
+  cat > ${ansible_playbook_file} << EOF
+---
+- hosts: lamp
+  tasks:
+    - name: Install packages on {{ ansible_fqdn }}
+      yum:
+        name: 
+          -  "{{ ansible_local.custom.packages.db_package }}"
+          -  "{{ ansible_local.custom.packages.web_package }}"
+        state: latest
+      register: result
+    - name: Display the result of the command
+      debug:
+        var: result
+EOF
+  if stat ${ansible_playbook_file} &>/dev/null; then
+    print_SUCCESS
+    pad " · Running the playbook"
+    if ${runuser} "ansible-playbook -i ${ansible_hst_file} ${ansible_playbook_file}" &>/dev/null; then
+      print_SUCCESS
+      echo "Ensuring packages have been installed"
+      for i in ${ansible_pkgs[@]}; do
+        pad " · Checking $i"
+        if ${ssh} ${ansible_target} "rpm -qa $i" &>/dev/null; then
+          print_SUCCESS
+        else
+          print_FAIL
+        fi
+      done
+    else
+      print_FAIL
+    fi
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+function lab_reset {
+
+  lab_cleanup
+
+  echo "Resetting the lab on ${control_node}:"
+  echo
+
+  pad " · Removing the working directory"
+  if rm -rf ${working_dir}; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  echo
+}
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

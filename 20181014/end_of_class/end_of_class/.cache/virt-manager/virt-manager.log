@@ -1,0 +1,1273 @@
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1504] DEBUG (cli:246) Launched with command line: /usr/share/virt-manager/virt-manager
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1504] DEBUG (virt-manager:153) virt-manager version: 1.2.1
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1504] DEBUG (virt-manager:154) virtManager import: <module 'virtManager' from '/usr/share/virt-manager/virtManager/__init__.pyc'>
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1505] DEBUG (virt-manager:213) GTK version: 3.14.13
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1505] DEBUG (engine:456) libguestfs inspection support: False
+[Mon, 17 Sep 2018 08:24:36 virt-manager 1505] DEBUG (systray:150) Showing systray: False
+[Mon, 17 Sep 2018 08:24:37 virt-manager 1505] DEBUG (manager:207) Showing manager
+[Mon, 17 Sep 2018 08:24:37 virt-manager 1505] DEBUG (engine:357) window counter incremented to 1
+[Mon, 17 Sep 2018 08:24:38 virt-manager 1505] DEBUG (engine:188) Determining default libvirt URI
+[Mon, 17 Sep 2018 08:24:38 virt-manager 1505] DEBUG (packageutils:42) PackageKit check/install for packages=['libvirt-daemon-kvm', 'libvirt-daemon-config-network']
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:57) package=libvirt-daemon-kvm already installed, skipping it
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:57) package=libvirt-daemon-config-network already installed, skipping it
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:63) Nothing to install
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:119) Trying to start libvirtd through systemd
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:144) libvirtd state='active'
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (packageutils:146) libvirtd already active, not starting
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:536) conn=qemu:///system changed to state=Connecting
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:846) Scheduling background open thread for qemu:///system
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:895) libvirt version=1002017
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:897) daemon version=1002017
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:898) conn version=1005003
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:900) qemu:///system capabilities:
+<capabilities>
+
+  <host>
+    <uuid>44454c4c-5200-1048-8038-b2c04f483932</uuid>
+    <cpu>
+      <arch>x86_64</arch>
+      <model>Haswell-noTSX</model>
+      <vendor>Intel</vendor>
+      <topology sockets="1" cores="4" threads="1"/>
+      <feature name="invtsc"/>
+      <feature name="abm"/>
+      <feature name="pdpe1gb"/>
+      <feature name="rdrand"/>
+      <feature name="f16c"/>
+      <feature name="osxsave"/>
+      <feature name="pdcm"/>
+      <feature name="xtpr"/>
+      <feature name="tm2"/>
+      <feature name="est"/>
+      <feature name="smx"/>
+      <feature name="vmx"/>
+      <feature name="ds_cpl"/>
+      <feature name="monitor"/>
+      <feature name="dtes64"/>
+      <feature name="pbe"/>
+      <feature name="tm"/>
+      <feature name="ht"/>
+      <feature name="ss"/>
+      <feature name="acpi"/>
+      <feature name="ds"/>
+      <feature name="vme"/>
+      <pages unit="KiB" size="4"/>
+      <pages unit="KiB" size="2048"/>
+      <pages unit="KiB" size="1048576"/>
+    </cpu>
+    <power_management>
+      <suspend_mem/>
+      <suspend_disk/>
+      <suspend_hybrid/>
+    </power_management>
+    <migration_features>
+      <live/>
+      <uri_transports>
+        <uri_transport>tcp</uri_transport>
+        <uri_transport>rdma</uri_transport>
+      </uri_transports>
+    </migration_features>
+    <topology>
+      <cells num="1">
+        <cell id="0">
+          <memory unit="KiB">16683112</memory>
+          <pages unit="KiB" size="4">4170778</pages>
+          <pages unit="KiB" size="2048">0</pages>
+          <pages unit="KiB" size="1048576">0</pages>
+          <distances>
+            <sibling id="0" value="10"/>
+          </distances>
+          <cpus num="4">
+            <cpu id="0" socket_id="0" core_id="0" siblings="0"/>
+            <cpu id="1" socket_id="0" core_id="1" siblings="1"/>
+            <cpu id="2" socket_id="0" core_id="2" siblings="2"/>
+            <cpu id="3" socket_id="0" core_id="3" siblings="3"/>
+          </cpus>
+        </cell>
+      </cells>
+    </topology>
+    <secmodel>
+      <model>selinux</model>
+      <doi>0</doi>
+      <baselabel type="kvm">system_u:system_r:svirt_t:s0</baselabel>
+      <baselabel type="qemu">system_u:system_r:svirt_tcg_t:s0</baselabel>
+    </secmodel>
+    <secmodel>
+      <model>dac</model>
+      <doi>0</doi>
+      <baselabel type="kvm">+107:+107</baselabel>
+      <baselabel type="qemu">+107:+107</baselabel>
+    </secmodel>
+  </host>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="i686">
+      <wordsize>32</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+      <pae/>
+      <nonpae/>
+    </features>
+  </guest>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="x86_64">
+      <wordsize>64</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+    </features>
+  </guest>
+
+</capabilities>
+
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:755) Using domain events
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:792) Using network events
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) network=default status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) network=privnet status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) network=privbr0 status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) interface=lo status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) domain=classroom status=Running added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) interface=br0:253 status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) domain=server status=Running added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) interface=br1 status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) domain=desktop status=Running added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) interface=br0 status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:1003) pool=default status=Active added
+[Mon, 17 Sep 2018 08:24:39 virt-manager 1505] DEBUG (connection:536) conn=qemu:///system changed to state=Active
+[Mon, 17 Sep 2018 08:25:07 virt-manager 1505] DEBUG (manager:218) Closing manager
+[Mon, 17 Sep 2018 08:25:07 virt-manager 1505] DEBUG (engine:361) window counter decremented to 0
+[Mon, 17 Sep 2018 08:25:07 virt-manager 1505] DEBUG (connection:808) conn.close() uri=qemu:///system
+[Mon, 17 Sep 2018 08:25:07 virt-manager 1505] DEBUG (connection:536) conn=qemu:///system changed to state=Disconnected
+[Mon, 17 Sep 2018 08:25:07 virt-manager 1505] DEBUG (engine:443) Exiting app normally.
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1876] DEBUG (cli:246) Launched with command line: /usr/share/virt-manager/virt-manager
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1876] DEBUG (virt-manager:153) virt-manager version: 1.2.1
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1876] DEBUG (virt-manager:154) virtManager import: <module 'virtManager' from '/usr/share/virt-manager/virtManager/__init__.pyc'>
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (virt-manager:213) GTK version: 3.14.13
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (engine:456) libguestfs inspection support: False
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (systray:150) Showing systray: False
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (engine:228) About to connect to uris ['qemu:///system']
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (manager:207) Showing manager
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (engine:357) window counter incremented to 1
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:536) conn=qemu:///system changed to state=Connecting
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:846) Scheduling background open thread for qemu:///system
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:895) libvirt version=1002017
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:897) daemon version=1002017
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:898) conn version=1005003
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:900) qemu:///system capabilities:
+<capabilities>
+
+  <host>
+    <uuid>44454c4c-5200-1048-8038-b2c04f483932</uuid>
+    <cpu>
+      <arch>x86_64</arch>
+      <model>Haswell-noTSX</model>
+      <vendor>Intel</vendor>
+      <topology sockets="1" cores="4" threads="1"/>
+      <feature name="invtsc"/>
+      <feature name="abm"/>
+      <feature name="pdpe1gb"/>
+      <feature name="rdrand"/>
+      <feature name="f16c"/>
+      <feature name="osxsave"/>
+      <feature name="pdcm"/>
+      <feature name="xtpr"/>
+      <feature name="tm2"/>
+      <feature name="est"/>
+      <feature name="smx"/>
+      <feature name="vmx"/>
+      <feature name="ds_cpl"/>
+      <feature name="monitor"/>
+      <feature name="dtes64"/>
+      <feature name="pbe"/>
+      <feature name="tm"/>
+      <feature name="ht"/>
+      <feature name="ss"/>
+      <feature name="acpi"/>
+      <feature name="ds"/>
+      <feature name="vme"/>
+      <pages unit="KiB" size="4"/>
+      <pages unit="KiB" size="2048"/>
+      <pages unit="KiB" size="1048576"/>
+    </cpu>
+    <power_management>
+      <suspend_mem/>
+      <suspend_disk/>
+      <suspend_hybrid/>
+    </power_management>
+    <migration_features>
+      <live/>
+      <uri_transports>
+        <uri_transport>tcp</uri_transport>
+        <uri_transport>rdma</uri_transport>
+      </uri_transports>
+    </migration_features>
+    <topology>
+      <cells num="1">
+        <cell id="0">
+          <memory unit="KiB">16683112</memory>
+          <pages unit="KiB" size="4">4170778</pages>
+          <pages unit="KiB" size="2048">0</pages>
+          <pages unit="KiB" size="1048576">0</pages>
+          <distances>
+            <sibling id="0" value="10"/>
+          </distances>
+          <cpus num="4">
+            <cpu id="0" socket_id="0" core_id="0" siblings="0"/>
+            <cpu id="1" socket_id="0" core_id="1" siblings="1"/>
+            <cpu id="2" socket_id="0" core_id="2" siblings="2"/>
+            <cpu id="3" socket_id="0" core_id="3" siblings="3"/>
+          </cpus>
+        </cell>
+      </cells>
+    </topology>
+    <secmodel>
+      <model>selinux</model>
+      <doi>0</doi>
+      <baselabel type="kvm">system_u:system_r:svirt_t:s0</baselabel>
+      <baselabel type="qemu">system_u:system_r:svirt_tcg_t:s0</baselabel>
+    </secmodel>
+    <secmodel>
+      <model>dac</model>
+      <doi>0</doi>
+      <baselabel type="kvm">+107:+107</baselabel>
+      <baselabel type="qemu">+107:+107</baselabel>
+    </secmodel>
+  </host>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="i686">
+      <wordsize>32</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+      <pae/>
+      <nonpae/>
+    </features>
+  </guest>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="x86_64">
+      <wordsize>64</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+    </features>
+  </guest>
+
+</capabilities>
+
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:755) Using domain events
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:792) Using network events
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) network=default status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) network=privnet status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) network=privbr0 status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) interface=lo status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) domain=classroom status=Running added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) interface=br0:253 status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) interface=br1 status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) interface=br0 status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) domain=server status=Running added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) domain=desktop status=Running added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:1003) pool=default status=Active added
+[Mon, 17 Sep 2018 08:31:51 virt-manager 1877] DEBUG (connection:536) conn=qemu:///system changed to state=Active
+[Mon, 17 Sep 2018 08:36:10 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=5 reason=1
+[Mon, 17 Sep 2018 08:36:35 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=4 reason=0
+[Mon, 17 Sep 2018 08:36:35 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=2 reason=0
+[Mon, 17 Sep 2018 08:38:07 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=5 reason=1
+[Mon, 17 Sep 2018 08:38:50 virt-manager 1877] DEBUG (engine:1040) Starting vm 'desktop'
+[Mon, 17 Sep 2018 08:38:50 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=4 reason=0
+[Mon, 17 Sep 2018 08:38:50 virt-manager 1877] DEBUG (connection:720) domain lifecycle event: domain=desktop event=2 reason=0
+[Mon, 17 Sep 2018 08:39:29 virt-manager 1877] DEBUG (create:157) Showing new vm wizard
+[Mon, 17 Sep 2018 08:39:29 virt-manager 1877] DEBUG (create:889) Guest type set to os_type=hvm, arch=x86_64, dom_type=kvm
+[Mon, 17 Sep 2018 08:40:14 virt-manager 1877] DEBUG (storagebrowse:53) Showing storage browser
+[Mon, 17 Sep 2018 08:40:18 virt-manager 1877] DEBUG (config:657) directory for type=isomedia returning=/root
+[Mon, 17 Sep 2018 08:40:43 virt-manager 1877] DEBUG (storagebrowse:66) Closing storage browser
+[Mon, 17 Sep 2018 08:40:45 virt-manager 1877] DEBUG (create:167) Closing new vm wizard
+[Mon, 17 Sep 2018 08:40:46 virt-manager 1877] DEBUG (manager:218) Closing manager
+[Mon, 17 Sep 2018 08:40:46 virt-manager 1877] DEBUG (engine:361) window counter decremented to 0
+[Mon, 17 Sep 2018 08:40:46 virt-manager 1877] DEBUG (connection:808) conn.close() uri=qemu:///system
+[Mon, 17 Sep 2018 08:40:46 virt-manager 1877] DEBUG (connection:536) conn=qemu:///system changed to state=Disconnected
+[Mon, 17 Sep 2018 08:40:46 virt-manager 1877] DEBUG (engine:443) Exiting app normally.
+[Wed, 10 Oct 2018 15:54:09 virt-manager 2849] DEBUG (cli:246) Launched with command line: /usr/share/virt-manager/virt-manager
+[Wed, 10 Oct 2018 15:54:09 virt-manager 2849] DEBUG (virt-manager:153) virt-manager version: 1.2.1
+[Wed, 10 Oct 2018 15:54:09 virt-manager 2849] DEBUG (virt-manager:154) virtManager import: <module 'virtManager' from '/usr/share/virt-manager/virtManager/__init__.pyc'>
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (virt-manager:213) GTK version: 3.14.13
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (engine:456) libguestfs inspection support: False
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (systray:150) Showing systray: False
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (engine:228) About to connect to uris ['qemu:///system']
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (manager:207) Showing manager
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (engine:357) window counter incremented to 1
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:536) conn=qemu:///system changed to state=Connecting
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:846) Scheduling background open thread for qemu:///system
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:895) libvirt version=1002017
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:897) daemon version=1002017
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:898) conn version=1005003
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:900) qemu:///system capabilities:
+<capabilities>
+
+  <host>
+    <uuid>44454c4c-5200-1048-8038-b2c04f483932</uuid>
+    <cpu>
+      <arch>x86_64</arch>
+      <model>Haswell-noTSX</model>
+      <vendor>Intel</vendor>
+      <topology sockets="1" cores="4" threads="1"/>
+      <feature name="invtsc"/>
+      <feature name="abm"/>
+      <feature name="pdpe1gb"/>
+      <feature name="rdrand"/>
+      <feature name="f16c"/>
+      <feature name="osxsave"/>
+      <feature name="pdcm"/>
+      <feature name="xtpr"/>
+      <feature name="tm2"/>
+      <feature name="est"/>
+      <feature name="smx"/>
+      <feature name="vmx"/>
+      <feature name="ds_cpl"/>
+      <feature name="monitor"/>
+      <feature name="dtes64"/>
+      <feature name="pbe"/>
+      <feature name="tm"/>
+      <feature name="ht"/>
+      <feature name="ss"/>
+      <feature name="acpi"/>
+      <feature name="ds"/>
+      <feature name="vme"/>
+      <pages unit="KiB" size="4"/>
+      <pages unit="KiB" size="2048"/>
+      <pages unit="KiB" size="1048576"/>
+    </cpu>
+    <power_management>
+      <suspend_mem/>
+      <suspend_disk/>
+      <suspend_hybrid/>
+    </power_management>
+    <migration_features>
+      <live/>
+      <uri_transports>
+        <uri_transport>tcp</uri_transport>
+        <uri_transport>rdma</uri_transport>
+      </uri_transports>
+    </migration_features>
+    <topology>
+      <cells num="1">
+        <cell id="0">
+          <memory unit="KiB">16683112</memory>
+          <pages unit="KiB" size="4">4170778</pages>
+          <pages unit="KiB" size="2048">0</pages>
+          <pages unit="KiB" size="1048576">0</pages>
+          <distances>
+            <sibling id="0" value="10"/>
+          </distances>
+          <cpus num="4">
+            <cpu id="0" socket_id="0" core_id="0" siblings="0"/>
+            <cpu id="1" socket_id="0" core_id="1" siblings="1"/>
+            <cpu id="2" socket_id="0" core_id="2" siblings="2"/>
+            <cpu id="3" socket_id="0" core_id="3" siblings="3"/>
+          </cpus>
+        </cell>
+      </cells>
+    </topology>
+    <secmodel>
+      <model>selinux</model>
+      <doi>0</doi>
+      <baselabel type="kvm">system_u:system_r:svirt_t:s0</baselabel>
+      <baselabel type="qemu">system_u:system_r:svirt_tcg_t:s0</baselabel>
+    </secmodel>
+    <secmodel>
+      <model>dac</model>
+      <doi>0</doi>
+      <baselabel type="kvm">+107:+107</baselabel>
+      <baselabel type="qemu">+107:+107</baselabel>
+    </secmodel>
+  </host>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="i686">
+      <wordsize>32</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+      <pae/>
+      <nonpae/>
+    </features>
+  </guest>
+
+  <guest>
+    <os_type>hvm</os_type>
+    <arch name="x86_64">
+      <wordsize>64</wordsize>
+      <emulator>/usr/libexec/qemu-kvm</emulator>
+      <machine maxCpus="240">pc-i440fx-rhel7.0.0</machine>
+      <machine canonical="pc-i440fx-rhel7.0.0" maxCpus="240">pc</machine>
+      <machine maxCpus="240">rhel6.0.0</machine>
+      <machine maxCpus="240">rhel6.1.0</machine>
+      <machine maxCpus="240">rhel6.2.0</machine>
+      <machine maxCpus="240">rhel6.3.0</machine>
+      <machine maxCpus="240">rhel6.4.0</machine>
+      <machine maxCpus="240">rhel6.5.0</machine>
+      <machine maxCpus="240">rhel6.6.0</machine>
+      <domain type="qemu">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+      <domain type="kvm">
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+      </domain>
+    </arch>
+    <features>
+      <cpuselection/>
+      <deviceboot/>
+      <disksnapshot default="off" toggle="no"/>
+      <acpi default="on" toggle="yes"/>
+      <apic default="on" toggle="no"/>
+    </features>
+  </guest>
+
+</capabilities>
+
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:755) Using domain events
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:792) Using network events
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) network=default status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) network=privnet status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) network=privbr0 status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) domain=classroom status=Running added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) interface=lo status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) domain=desktop status=Shutoff added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) interface=br0:253 status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) interface=br1 status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) domain=server status=Shutoff added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) interface=br0 status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) pool=default status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:1003) pool=Downloads status=Active added
+[Wed, 10 Oct 2018 15:54:10 virt-manager 2850] DEBUG (connection:536) conn=qemu:///system changed to state=Active
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2896] DEBUG (cli:246) Launched with command line: /usr/share/virt-manager/virt-manager
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2896] DEBUG (virt-manager:153) virt-manager version: 1.2.1
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2896] DEBUG (virt-manager:154) virtManager import: <module 'virtManager' from '/usr/share/virt-manager/virtManager/__init__.pyc'>
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2897] DEBUG (virt-manager:213) GTK version: 3.14.13
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2897] DEBUG (engine:456) libguestfs inspection support: False
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2897] DEBUG (systray:150) Showing systray: False
+[Wed, 10 Oct 2018 15:55:42 virt-manager 2897] DEBUG (engine:228) About to connect to uris ['qemu:///system']
+[Wed, 10 Oct 2018 16:03:24 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=server event=4 reason=0
+[Wed, 10 Oct 2018 16:03:24 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=server event=2 reason=0
+[Wed, 10 Oct 2018 16:03:29 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=desktop event=4 reason=0
+[Wed, 10 Oct 2018 16:03:29 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=desktop event=2 reason=0
+[Wed, 10 Oct 2018 16:03:52 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=desktop event=5 reason=1
+[Wed, 10 Oct 2018 16:03:58 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=server event=5 reason=1
+[Wed, 10 Oct 2018 16:05:05 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=server event=4 reason=0
+[Wed, 10 Oct 2018 16:05:05 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=server event=2 reason=0
+[Wed, 10 Oct 2018 16:25:09 virt-manager 2850] DEBUG (create:157) Showing new vm wizard
+[Wed, 10 Oct 2018 16:25:09 virt-manager 2850] DEBUG (create:889) Guest type set to os_type=hvm, arch=x86_64, dom_type=kvm
+[Wed, 10 Oct 2018 16:25:54 virt-manager 2850] DEBUG (storagebrowse:53) Showing storage browser
+[Wed, 10 Oct 2018 16:26:07 virt-manager 2850] DEBUG (config:657) directory for type=isomedia returning=/root
+[Wed, 10 Oct 2018 16:26:32 virt-manager 2850] DEBUG (config:665) saving directory for type=media to /home/kiosk/Downloads
+[Wed, 10 Oct 2018 16:26:32 virt-manager 2850] DEBUG (create:2048) Starting OS detection thread for media=/home/kiosk/Downloads/rhel-server-7.0-x86_64-dvd.iso
+[Wed, 10 Oct 2018 16:26:32 virt-manager 2850] DEBUG (storagebrowse:66) Closing storage browser
+[Wed, 10 Oct 2018 16:26:32 virt-manager 2850] DEBUG (distroinstaller:518) installer.detect_distro returned=rhel7.0
+[Wed, 10 Oct 2018 16:26:32 virt-manager 2850] DEBUG (create:2033) Finished OS detection.
+[Wed, 10 Oct 2018 16:27:10 virt-manager 2850] DEBUG (create:2048) Starting OS detection thread for media=/home/kiosk/Downloads/rhel-server-7.0-x86_64-dvd.iso
+[Wed, 10 Oct 2018 16:27:11 virt-manager 2850] DEBUG (distroinstaller:518) installer.detect_distro returned=rhel7.0
+[Wed, 10 Oct 2018 16:27:11 virt-manager 2850] DEBUG (create:2033) Finished OS detection.
+[Wed, 10 Oct 2018 16:27:17 virt-manager 2850] DEBUG (guest:238) Setting Guest.os_variant to 'rhel7.0'
+[Wed, 10 Oct 2018 16:27:17 virt-manager 2850] DEBUG (create:1637) Recommended resources for variant=rhel7.0: {'storage': 9663676416L, 'ram': 1073741824L, 'n-cpus': -1, 'cpu': 400000000L}
+[Wed, 10 Oct 2018 16:28:36 virt-manager 2850] DEBUG (create:1695) Default storage path is: /var/lib/libvirt/images/rhel7.0.qcow2
+[Wed, 10 Oct 2018 16:28:36 virt-manager 2850] DEBUG (devicedisk:425) Creating volume 'rhel7.0.qcow2' on pool 'default'
+[Wed, 10 Oct 2018 16:28:36 virt-manager 2850] DEBUG (devicedisk:546) disk.set_vol_install: name=rhel7.0.qcow2 poolxml=
+<pool type='dir'>
+  <name>default</name>
+  <uuid>94ac699e-ac41-4252-8dba-00c1e3cfb9f9</uuid>
+  <capacity unit='bytes'>491477037056</capacity>
+  <allocation unit='bytes'>29433442304</allocation>
+  <available unit='bytes'>462043594752</available>
+  <source>
+  </source>
+  <target>
+    <path>/var/lib/libvirt/images</path>
+    <permissions>
+      <mode>0711</mode>
+      <owner>0</owner>
+      <group>0</group>
+      <label>system_u:object_r:virt_image_t:s0</label>
+    </permissions>
+  </target>
+</pool>
+
+[Wed, 10 Oct 2018 16:28:36 virt-manager 2850] DEBUG (addstorage:309) Setting disk format from prefs: qcow2
+[Wed, 10 Oct 2018 16:29:32 virt-manager 2850] DEBUG (baseclass:117) Validation Error: Invalid guest name Guest name 'coss mth' can not contain ' ' character. (<vmmErrorDialog object at 0x4fbad70 (virtManager+error+vmmErrorDialog at 0x5153a60)> 6)
+:  File "/usr/share/virt-manager/virt-manager", line 286, in <module>
+    main()
+  File "/usr/share/virt-manager/virt-manager", line 281, in main
+    engine.application.run(None)
+  File "/usr/share/virt-manager/virtManager/create.py", line 1769, in finish
+    if self.validate(page) is not True:
+  File "/usr/share/virt-manager/virtManager/create.py", line 1443, in validate
+    return self.validate_final_page()
+  File "/usr/share/virt-manager/virtManager/create.py", line 1723, in validate_final_page
+    return self.err.val_err(_("Invalid guest name"), str(e))
+  File "/usr/share/virt-manager/virtManager/error.py", line 142, in val_err
+    self._logtrace(logtext)
+  File "/usr/share/virt-manager/virtManager/baseclass.py", line 117, in _logtrace
+    "".join(traceback.format_stack()))
+
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (create:1725) User changed VM name and using default storage, re-validating with new default storage path.
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (create:1695) Default storage path is: /var/lib/libvirt/images/coss-mth.qcow2
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (devicedisk:425) Creating volume 'coss-mth.qcow2' on pool 'default'
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (devicedisk:546) disk.set_vol_install: name=coss-mth.qcow2 poolxml=
+<pool type='dir'>
+  <name>default</name>
+  <uuid>94ac699e-ac41-4252-8dba-00c1e3cfb9f9</uuid>
+  <capacity unit='bytes'>491477037056</capacity>
+  <allocation unit='bytes'>29433421824</allocation>
+  <available unit='bytes'>462043615232</available>
+  <source>
+  </source>
+  <target>
+    <path>/var/lib/libvirt/images</path>
+    <permissions>
+      <mode>0711</mode>
+      <owner>0</owner>
+      <group>0</group>
+      <label>system_u:object_r:virt_image_t:s0</label>
+    </permissions>
+  </target>
+</pool>
+
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (addstorage:309) Setting disk format from prefs: qcow2
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (create:1772) Starting create finish() sequence
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (create:1782) User requested 'customize', launching dialog
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (guest:1061) Using default_graphics=spice
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (guest:1079) Local connection, disabling spice image compression.
+[Wed, 10 Oct 2018 16:29:42 virt-manager 2850] DEBUG (domain:1954) <vmmDomainVirtinst object at 0x274f320 (virtManager+domain+vmmDomainVirtinst at 0x4eb8ec0)> initialized with XML=
+<domain type="kvm">
+  <name>coss-mth</name>
+  <uuid>05ba348b-f738-4e30-bbfe-b7d31014e1d5</uuid>
+  <memory>2097152</memory>
+  <currentMemory>2097152</currentMemory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64">hvm</type>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="custom" match="exact">
+    <model>Haswell-noTSX</model>
+  </cpu>
+  <clock offset="utc">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/coss-mth.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="block" device="cdrom">
+      <target dev="hda" bus="ide"/>
+      <readonly/>
+    </disk>
+    <controller type="usb" index="0" model="ich9-ehci1"/>
+    <controller type="usb" index="0" model="ich9-uhci1">
+      <master startport="0"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci2">
+      <master startport="2"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci3">
+      <master startport="4"/>
+    </controller>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:d2:ae:84"/>
+      <model type="virtio"/>
+    </interface>
+    <input type="tablet" bus="usb"/>
+    <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+      <image compression="off"/>
+    </graphics>
+    <console type="pty"/>
+    <channel type="unix">
+      <source mode="bind"/>
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <sound model="ich6"/>
+    <video>
+      <model type="qxl"/>
+    </video>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+  </devices>
+</domain>
+
+[Wed, 10 Oct 2018 16:29:43 virt-manager 2850] DEBUG (details:602) Showing VM details: <vmmDomainVirtinst object at 0x274f320 (virtManager+domain+vmmDomainVirtinst at 0x4eb8ec0)>
+[Wed, 10 Oct 2018 16:29:52 virt-manager 2850] DEBUG (addhardware:125) Showing addhw
+[Wed, 10 Oct 2018 16:29:55 virt-manager 2850] DEBUG (addhardware:1316) Running setup() for device=<virtinst.deviceinterface.VirtualNetworkInterface object at 0x4fe9dd0>
+[Wed, 10 Oct 2018 16:29:55 virt-manager 2850] DEBUG (addhardware:1318) Device setup() complete
+[Wed, 10 Oct 2018 16:29:55 virt-manager 2850] DEBUG (addhardware:1331) Adding device:
+<interface type="bridge">
+  <source bridge="br1"/>
+  <mac address="52:54:00:9f:51:4c"/>
+</interface>
+
+[Wed, 10 Oct 2018 16:29:55 virt-manager 2850] DEBUG (libvirtobject:74) Redefining <vmmDomainVirtinst name=coss-mth> with XML diff:
+--- Original XML
++++ New XML
+@@ -52,6 +52,10 @@
+       <mac address="52:54:00:d2:ae:84"/>
+       <model type="virtio"/>
+     </interface>
++    <interface type="bridge">
++      <source bridge="br1"/>
++      <mac address="52:54:00:9f:51:4c"/>
++    </interface>
+     <input type="tablet" bus="usb"/>
+     <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+       <image compression="off"/>
+
+[Wed, 10 Oct 2018 16:29:56 virt-manager 2850] DEBUG (addhardware:135) Closing addhw
+[Wed, 10 Oct 2018 16:29:58 virt-manager 2850] DEBUG (addhardware:125) Showing addhw
+[Wed, 10 Oct 2018 16:30:01 virt-manager 2850] DEBUG (addhardware:1316) Running setup() for device=<virtinst.deviceinterface.VirtualNetworkInterface object at 0x5476fd0>
+[Wed, 10 Oct 2018 16:30:01 virt-manager 2850] DEBUG (addhardware:1318) Device setup() complete
+[Wed, 10 Oct 2018 16:30:01 virt-manager 2850] DEBUG (addhardware:1331) Adding device:
+<interface type="bridge">
+  <source bridge="br1"/>
+  <mac address="52:54:00:b7:4d:10"/>
+</interface>
+
+[Wed, 10 Oct 2018 16:30:01 virt-manager 2850] DEBUG (libvirtobject:74) Redefining <vmmDomainVirtinst name=coss-mth> with XML diff:
+--- Original XML
++++ New XML
+@@ -56,6 +56,10 @@
+       <source bridge="br1"/>
+       <mac address="52:54:00:9f:51:4c"/>
+     </interface>
++    <interface type="bridge">
++      <source bridge="br1"/>
++      <mac address="52:54:00:b7:4d:10"/>
++    </interface>
+     <input type="tablet" bus="usb"/>
+     <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+       <image compression="off"/>
+
+[Wed, 10 Oct 2018 16:30:01 virt-manager 2850] DEBUG (addhardware:135) Closing addhw
+[Wed, 10 Oct 2018 16:30:05 virt-manager 2850] DEBUG (addhardware:125) Showing addhw
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (devicedisk:425) Creating volume 'coss-mth-1.qcow2' on pool 'default'
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (devicedisk:546) disk.set_vol_install: name=coss-mth-1.qcow2 poolxml=
+<pool type='dir'>
+  <name>default</name>
+  <uuid>94ac699e-ac41-4252-8dba-00c1e3cfb9f9</uuid>
+  <capacity unit='bytes'>491477037056</capacity>
+  <allocation unit='bytes'>29433462784</allocation>
+  <available unit='bytes'>462043574272</available>
+  <source>
+  </source>
+  <target>
+    <path>/var/lib/libvirt/images</path>
+    <permissions>
+      <mode>0711</mode>
+      <owner>0</owner>
+      <group>0</group>
+      <label>system_u:object_r:virt_image_t:s0</label>
+    </permissions>
+  </target>
+</pool>
+
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (addhardware:1316) Running setup() for device=<virtinst.devicedisk.VirtualDisk object at 0x2753b50>
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (storage:765) Creating storage volume 'coss-mth-1.qcow2' with xml:
+<volume>
+  <name>coss-mth-1.qcow2</name>
+  <capacity>8589934592</capacity>
+  <allocation>0</allocation>
+  <target>
+    <format type="qcow2"/>
+    <features>
+      <lazy_refcounts/>
+    </features>
+  </target>
+</volume>
+
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (storage:798) Using vol create flags=1
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (storage:834) Couldn't lookup storage volume in prog thread.
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (storage:805) Storage volume 'coss-mth-1.qcow2' install complete.
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (addhardware:1318) Device setup() complete
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (addhardware:1331) Adding device:
+<disk type="file" device="disk">
+  <driver name="qemu" type="qcow2"/>
+  <source file="/var/lib/libvirt/images/coss-mth-1.qcow2"/>
+  <target dev="vdb" bus="virtio"/>
+</disk>
+
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (libvirtobject:74) Redefining <vmmDomainVirtinst name=coss-mth> with XML diff:
+--- Original XML
++++ New XML
+@@ -36,6 +36,11 @@
+     <disk type="block" device="cdrom">
+       <target dev="hda" bus="ide"/>
+       <readonly/>
++    </disk>
++    <disk type="file" device="disk">
++      <driver name="qemu" type="qcow2"/>
++      <source file="/var/lib/libvirt/images/coss-mth-1.qcow2"/>
++      <target dev="vdb" bus="virtio"/>
+     </disk>
+     <controller type="usb" index="0" model="ich9-ehci1"/>
+     <controller type="usb" index="0" model="ich9-uhci1">
+
+[Wed, 10 Oct 2018 16:30:09 virt-manager 2850] DEBUG (addhardware:135) Closing addhw
+[Wed, 10 Oct 2018 16:30:21 virt-manager 2850] DEBUG (details:638) Closing VM details: <vmmDomainVirtinst object at 0x274f320 (virtManager+domain+vmmDomainVirtinst at 0x4eb8ec0)>
+[Wed, 10 Oct 2018 16:30:21 virt-manager 2850] DEBUG (create:1806) User finished customize dialog, starting install
+[Wed, 10 Oct 2018 16:30:21 virt-manager 2850] DEBUG (create:1872) Starting background install process
+[Wed, 10 Oct 2018 16:30:21 virt-manager 2850] DEBUG (storage:765) Creating storage volume 'coss-mth.qcow2' with xml:
+<volume>
+  <name>coss-mth.qcow2</name>
+  <capacity>20401094656</capacity>
+  <allocation>0</allocation>
+  <target>
+    <format type="qcow2"/>
+    <features>
+      <lazy_refcounts/>
+    </features>
+  </target>
+</volume>
+
+[Wed, 10 Oct 2018 16:30:21 virt-manager 2850] DEBUG (storage:798) Using vol create flags=1
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (storage:834) Couldn't lookup storage volume in prog thread.
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (storage:805) Storage volume 'coss-mth.qcow2' install complete.
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (guest:463) Generated install XML: 
+<domain type="kvm">
+  <name>coss-mth</name>
+  <uuid>05ba348b-f738-4e30-bbfe-b7d31014e1d5</uuid>
+  <memory>2097152</memory>
+  <currentMemory>2097152</currentMemory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64">hvm</type>
+    <boot dev="cdrom"/>
+    <boot dev="hd"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="custom" match="exact">
+    <model>Haswell-noTSX</model>
+  </cpu>
+  <clock offset="utc">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>destroy</on_reboot>
+  <on_crash>destroy</on_crash>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/coss-mth.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="file" device="cdrom">
+      <driver name="qemu" type="raw"/>
+      <source file="/home/kiosk/Downloads/rhel-server-7.0-x86_64-dvd.iso"/>
+      <target dev="hda" bus="ide"/>
+      <readonly/>
+    </disk>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/coss-mth-1.qcow2"/>
+      <target dev="vdb" bus="virtio"/>
+    </disk>
+    <controller type="usb" index="0" model="ich9-ehci1"/>
+    <controller type="usb" index="0" model="ich9-uhci1">
+      <master startport="0"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci2">
+      <master startport="2"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci3">
+      <master startport="4"/>
+    </controller>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:d2:ae:84"/>
+      <model type="virtio"/>
+    </interface>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:9f:51:4c"/>
+    </interface>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:b7:4d:10"/>
+    </interface>
+    <input type="tablet" bus="usb"/>
+    <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+      <image compression="off"/>
+    </graphics>
+    <console type="pty"/>
+    <channel type="unix">
+      <source mode="bind"/>
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <sound model="ich6"/>
+    <video>
+      <model type="qxl"/>
+    </video>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+  </devices>
+</domain>
+
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (guest:464) Generated boot XML: 
+<domain type="kvm">
+  <name>coss-mth</name>
+  <uuid>05ba348b-f738-4e30-bbfe-b7d31014e1d5</uuid>
+  <memory>2097152</memory>
+  <currentMemory>2097152</currentMemory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="custom" match="exact">
+    <model>Haswell-noTSX</model>
+  </cpu>
+  <clock offset="utc">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/coss-mth.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="block" device="cdrom">
+      <target dev="hda" bus="ide"/>
+      <readonly/>
+    </disk>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/coss-mth-1.qcow2"/>
+      <target dev="vdb" bus="virtio"/>
+    </disk>
+    <controller type="usb" index="0" model="ich9-ehci1"/>
+    <controller type="usb" index="0" model="ich9-uhci1">
+      <master startport="0"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci2">
+      <master startport="2"/>
+    </controller>
+    <controller type="usb" index="0" model="ich9-uhci3">
+      <master startport="4"/>
+    </controller>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:d2:ae:84"/>
+      <model type="virtio"/>
+    </interface>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:9f:51:4c"/>
+    </interface>
+    <interface type="bridge">
+      <source bridge="br1"/>
+      <mac address="52:54:00:b7:4d:10"/>
+    </interface>
+    <input type="tablet" bus="usb"/>
+    <graphics type="spice" port="-1" tlsPort="-1" autoport="yes">
+      <image compression="off"/>
+    </graphics>
+    <console type="pty"/>
+    <channel type="unix">
+      <source mode="bind"/>
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <sound model="ich6"/>
+    <video>
+      <model type="qxl"/>
+    </video>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+  </devices>
+</domain>
+
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=4 reason=0
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=2 reason=0
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=0 reason=0
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (guest:494) XML fetched from libvirt object:
+<domain type='kvm' id='6'>
+  <name>coss-mth</name>
+  <uuid>05ba348b-f738-4e30-bbfe-b7d31014e1d5</uuid>
+  <memory unit='KiB'>2097152</memory>
+  <currentMemory unit='KiB'>2097152</currentMemory>
+  <vcpu placement='static'>2</vcpu>
+  <resource>
+    <partition>/machine</partition>
+  </resource>
+  <os>
+    <type arch='x86_64' machine='pc-i440fx-rhel7.0.0'>hvm</type>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode='custom' match='exact'>
+    <model fallback='allow'>Haswell-noTSX</model>
+  </cpu>
+  <clock offset='utc'>
+    <timer name='rtc' tickpolicy='catchup'/>
+    <timer name='pit' tickpolicy='delay'/>
+    <timer name='hpet' present='no'/>
+  </clock>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>destroy</on_reboot>
+  <on_crash>destroy</on_crash>
+  <pm>
+    <suspend-to-mem enabled='no'/>
+    <suspend-to-disk enabled='no'/>
+  </pm>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/coss-mth.qcow2'/>
+      <backingStore/>
+      <target dev='vda' bus='virtio'/>
+      <alias name='virtio-disk0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x09' function='0x0'/>
+    </disk>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/coss-mth-1.qcow2'/>
+      <backingStore/>
+      <target dev='vdb' bus='virtio'/>
+      <alias name='virtio-disk1'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x0a' function='0x0'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/home/kiosk/Downloads/rhel-server-7.0-x86_64-dvd.iso'/>
+      <backingStore/>
+      <target dev='hda' bus='ide'/>
+      <readonly/>
+      <alias name='ide0-0-0'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+    </disk>
+    <controller type='usb' index='0' model='ich9-ehci1'>
+      <alias name='usb'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x7'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci1'>
+      <alias name='usb'/>
+      <master startport='0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0' multifunction='on'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci2'>
+      <alias name='usb'/>
+      <master startport='2'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x1'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci3'>
+      <alias name='usb'/>
+      <master startport='4'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x2'/>
+    </controller>
+    <controller type='pci' index='0' model='pci-root'>
+      <alias name='pci.0'/>
+    </controller>
+    <controller type='ide' index='0'>
+      <alias name='ide'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    </controller>
+    <controller type='virtio-serial' index='0'>
+      <alias name='virtio-serial0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x07' function='0x0'/>
+    </controller>
+    <interface type='bridge'>
+      <mac address='52:54:00:d2:ae:84'/>
+      <source bridge='br1'/>
+      <target dev='vnet3'/>
+      <model type='virtio'/>
+      <alias name='net0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
+    </interface>
+    <interface type='bridge'>
+      <mac address='52:54:00:9f:51:4c'/>
+      <source bridge='br1'/>
+      <target dev='vnet4'/>
+      <model type='rtl8139'/>
+      <alias name='net1'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+    </interface>
+    <interface type='bridge'>
+      <mac address='52:54:00:b7:4d:10'/>
+      <source bridge='br1'/>
+      <target dev='vnet5'/>
+      <model type='rtl8139'/>
+      <alias name='net2'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+    </interface>
+    <serial type='pty'>
+      <source path='/dev/pts/3'/>
+      <target port='0'/>
+      <alias name='serial0'/>
+    </serial>
+    <console type='pty' tty='/dev/pts/3'>
+      <source path='/dev/pts/3'/>
+      <target type='serial' port='0'/>
+      <alias name='serial0'/>
+    </console>
+    <channel type='unix'>
+      <source mode='bind' path='/var/lib/libvirt/qemu/channel/target/domain-coss-mth/org.qemu.guest_agent.0'/>
+      <target type='virtio' name='org.qemu.guest_agent.0' state='disconnected'/>
+      <alias name='channel0'/>
+      <address type='virtio-serial' controller='0' bus='0' port='1'/>
+    </channel>
+    <channel type='spicevmc'>
+      <target type='virtio' name='com.redhat.spice.0' state='disconnected'/>
+      <alias name='channel1'/>
+      <address type='virtio-serial' controller='0' bus='0' port='2'/>
+    </channel>
+    <input type='tablet' bus='usb'>
+      <alias name='input0'/>
+    </input>
+    <input type='mouse' bus='ps2'/>
+    <input type='keyboard' bus='ps2'/>
+    <graphics type='spice' port='5903' autoport='yes' listen='127.0.0.1'>
+      <listen type='address' address='127.0.0.1'/>
+      <image compression='off'/>
+    </graphics>
+    <sound model='ich6'>
+      <alias name='sound0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x06' function='0x0'/>
+    </sound>
+    <video>
+      <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1'/>
+      <alias name='video0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
+    </video>
+    <redirdev bus='usb' type='spicevmc'>
+      <alias name='redir0'/>
+    </redirdev>
+    <redirdev bus='usb' type='spicevmc'>
+      <alias name='redir1'/>
+    </redirdev>
+    <memballoon model='virtio'>
+      <alias name='balloon0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
+    </memballoon>
+  </devices>
+  <seclabel type='dynamic' model='selinux' relabel='yes'>
+    <label>system_u:system_r:svirt_t:s0:c257,c438</label>
+    <imagelabel>system_u:object_r:svirt_image_t:s0:c257,c438</imagelabel>
+  </seclabel>
+</domain>
+
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (create:1874) Install completed
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (connection:1003) domain=coss-mth status=Running added
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (connection:997) New domain=coss-mth requested, but it's already tracked.
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (create:167) Closing new vm wizard
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (details:602) Showing VM details: <vmmDomain object at 0x56d6960 (virtManager+domain+vmmDomain at 0x641b6e0)>
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (engine:357) window counter incremented to 2
+[Wed, 10 Oct 2018 16:30:22 virt-manager 2850] DEBUG (console:650) Starting connect process for proto=spice trans= connhost=127.0.0.1 connuser= connport= gaddr=127.0.0.1 gport=5903 gtlsport=None gsocket=None
+[Wed, 10 Oct 2018 16:30:23 virt-manager 2850] DEBUG (console:771) Viewer connected
+[Thu, 11 Oct 2018 04:26:12 virt-manager 2850] DEBUG (connection:707) domain xmlmisc event: domain=coss-mth args=('drive-ide0-0-0', 0, None) 
+[Thu, 11 Oct 2018 04:26:12 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=6 reason=0
+[Thu, 11 Oct 2018 04:26:12 virt-manager 2850] DEBUG (console:749) Viewer disconnected
+[Thu, 11 Oct 2018 04:26:12 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=5 reason=0
+[Thu, 11 Oct 2018 04:26:12 virt-manager 2850] DEBUG (create:1946) Install should be completed, starting VM.
+[Thu, 11 Oct 2018 04:26:13 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=4 reason=0
+[Thu, 11 Oct 2018 04:26:13 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=2 reason=0
+[Thu, 11 Oct 2018 04:26:14 virt-manager 2850] DEBUG (engine:361) window counter decremented to 1
+[Thu, 11 Oct 2018 04:26:27 virt-manager 2850] DEBUG (delete:70) Showing delete wizard
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (delete:172) Forcing VM 'coss-mth' power off.
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=5 reason=1
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (delete:180) Deleting path: /var/lib/libvirt/images/coss-mth.qcow2
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (delete:180) Deleting path: /var/lib/libvirt/images/coss-mth-1.qcow2
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (delete:188) Removing VM 'coss-mth'
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=coss-mth event=1 reason=0
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (libvirtobject:274) Error refreshing <vmmDomain object at 0x56d6960 (virtManager+domain+vmmDomain at 0x641b6e0)> from events: Domain not found: no domain with matching uuid '05ba348b-f738-4e30-bbfe-b7d31014e1d5' (coss-mth)
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (libvirtobject:278) Scheduling priority tick with: {'pollvm': True, 'force': True}
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (connection:975) domain=coss-mth removed
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (details:638) Closing VM details: <vmmDomain object at 0x56d6960 (virtManager+domain+vmmDomain at 0x641b6e0)>
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (error:97) error dialog message:
+summary=Errors encountered while removing certain storage devices.
+details=cannot unlink file '/var/lib/libvirt/images/coss-mth.qcow2': Success
+Traceback (most recent call last):
+  File "/usr/share/virt-manager/virtManager/delete.py", line 182, in _async_delete
+    self._async_delete_path(conn, path, meter)
+  File "/usr/share/virt-manager/virtManager/delete.py", line 228, in _async_delete_path
+    vol.delete(0)
+  File "/usr/lib64/python2.7/site-packages/libvirt.py", line 3348, in delete
+    if ret == -1: raise libvirtError ('virStorageVolDelete() failed', vol=self)
+libvirtError: cannot unlink file '/var/lib/libvirt/images/coss-mth.qcow2': Success
+
+cannot unlink file '/var/lib/libvirt/images/coss-mth-1.qcow2': Success
+Traceback (most recent call last):
+  File "/usr/share/virt-manager/virtManager/delete.py", line 182, in _async_delete
+    self._async_delete_path(conn, path, meter)
+  File "/usr/share/virt-manager/virtManager/delete.py", line 228, in _async_delete_path
+    vol.delete(0)
+  File "/usr/lib64/python2.7/site-packages/libvirt.py", line 3348, in delete
+    if ret == -1: raise libvirtError ('virStorageVolDelete() failed', vol=self)
+libvirtError: cannot unlink file '/var/lib/libvirt/images/coss-mth-1.qcow2': Success
+
+
+[Thu, 11 Oct 2018 04:26:35 virt-manager 2850] DEBUG (delete:79) Closing delete wizard
+[Thu, 11 Oct 2018 04:26:40 virt-manager 2850] DEBUG (engine:1040) Starting vm 'desktop'
+[Thu, 11 Oct 2018 04:26:41 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=desktop event=4 reason=0
+[Thu, 11 Oct 2018 04:26:41 virt-manager 2850] DEBUG (connection:720) domain lifecycle event: domain=desktop event=2 reason=0
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (manager:218) Closing manager
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (engine:361) window counter decremented to 0
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (delete:79) Closing delete wizard
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (connection:808) conn.close() uri=qemu:///system
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (connection:536) conn=qemu:///system changed to state=Disconnected
+[Thu, 11 Oct 2018 04:26:42 virt-manager 2850] DEBUG (engine:443) Exiting app normally.

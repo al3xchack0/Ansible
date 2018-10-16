@@ -1,0 +1,268 @@
+#
+# Copyright 2016 Red Hat, Inc.
+#
+# NAME
+#     labtool.do407.shlib - lab grading script do407 function library
+#
+# SYNOPSIS
+#     Add the following line at the top of your script:
+#
+#        source /path/to/labtool.do407.shlib
+#
+#     *after* the source of the generic labtool.shlib
+#
+# DESCRIPTION
+#
+# CHANGELOG
+#   * Thu May 26 2016 Chen Chang <cchang@redhat.com>
+#   - Change vagrant to run on tower instead of serverb
+#   * Thu May  5 2016 George Hacker <ghacker@redhat.com>
+#   - added functions to manage ansible-galaxy for offline use
+#   * Fri Apr 29 2016 George Hacker <ghacker@redhat.com>
+#   - copied Vagrant and related content from labtool.puppet.shlib
+
+technology='ansible2.3'
+
+gitserver='workstation'
+gituser='student'
+repo_dir='/var/git'
+project='webapp'
+vagrantproject='vagrantwebapp'
+
+vagrantserver='tower'
+vagrant_yum_repo='/etc/yum.repos.d/vagrant.repo'
+
+prodserver='servera'
+
+dvd_dir_url="http://content.example.com/${technology}/x86_64/dvd"
+vagrant_dir_url="${dvd_dir_url}/vagrant/vagrant.d.tgz"
+#vagrant_box_url="${dvd_dir_url}/vagrant/rhel-server-libvirt-7.1-1.x86_64.box"
+
+########################## Function Definitions #########################
+
+function setup_vagrant {
+
+  cmd1="[[ -f ${vagrant_yum_repo} ]]"
+  if ! ${ssh} ${vagrantserver} "${cmd1}"
+  then
+    pad ' · Pointing to Vagrant package repository'
+    cat << EOF > /tmp/tmpfile
+[vagrant]
+name="Repository with Vagrant packages"
+baseurl=${dvd_dir_url}/vagrant/Packages
+gpgcheck=0
+enabled=0
+EOF
+    cmd1="cat > ${vagrant_yum_repo}"
+    if cat /tmp/tmpfile | ${ssh} ${vagrantserver} "${cmd1}"
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  pad ' · Installing virtualization support'
+  cmd1='yum -q -y install libvirt libvirt-devel qemu-kvm'
+  if ${ssh} ${vagrantserver} "${cmd1}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Starting and enabling libvirtd'
+  cmd1='systemctl start libvirtd'
+  cmd2='systemctl enable libvirtd'
+  if ${ssh} ${vagrantserver} "${cmd1} && ${cmd2}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Installing Vagrant software'
+  cmd1='yum -q -y install --enablerepo=vagrant vagrant'
+  if ${ssh} ${vagrantserver} "${cmd1}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+
+  pad ' · Extracting Vagrant directories into /root'
+  cmd1="curl -s -f ${vagrant_dir_url} | tar xzvf -"
+  if ${ssh} ${vagrantserver} "${cmd1}"
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+function setup_gitrepo {
+  cmd1='rpm -q git'
+  if ! ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Install the git software'
+    if ${ssh} ${gitserver} 'yum -y install git' &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1='getent group git'
+  if ! ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Create the git system group'
+    cmd1='groupadd --system git'
+    if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  cmd1="[[ -d ${repo_dir} ]]"
+  if ! ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+  then
+    pad ' · Create the shared Git repository'
+    cmd1="install -d -g git -m 2775 ${repo_dir}"
+    if ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  fi
+
+  pad " · Add ${gituser} to the git group"
+  if ${ssh} ${gitserver} "usermod -a -G git ${gituser}" &> /dev/null
+  then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi
+}
+
+function restore_gitprojects {
+  for proj in ${project} ${vagrantproject}
+  do
+    cmd1="[[ -d ${repo_dir}/${proj}.git ]]"
+    if ! ${ssh} ${gitserver} "${cmd1}" &> /dev/null
+    then
+      pad " · Restore the ${proj} project"
+      cmd1="cd ${repo_dir}"
+      cmd2="curl -s -f -o /tmp/${proj}.git.bundle http://materials.example.com/vagrant/${proj}.git.bundle"
+      cmd3="git clone /tmp/${proj}.git.bundle"
+      cmd4="cd ${repo_dir}/${proj}.git"
+      cmd5='git config core.bare true'
+      if ${ssh} ${gituser}@${gitserver} "${cmd1} && ${cmd2} && ${cmd3} && ${cmd4} && ${cmd5}" &> /dev/null
+      then
+	print_SUCCESS
+      else
+	print_FAIL
+      fi
+    fi
+  done
+}
+
+# Usage: config_gituser user@hostname
+function config_gituser {
+  if [[ $# -eq 1 ]]
+  then
+    local remote_user=${1%@*} remote_host=${1#*@}
+    echo " · Configuring ${remote_user}@${remote_host} for remote Git access"
+    pad '   · Installing the Git software'
+    cmd1='yum -y install git'
+    if ${ssh} root@${remote_host} "${cmd1}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+    pad '   · Defining Git configurations'
+    cmd1="git config --global user.name '${remote_user^} User'"
+    cmd2="git config --global user.email '${remote_user}@${remote_host}'"
+    cmd3='git config --global push.default simple'
+    if ${ssh} ${remote_user}@${remote_host} "${cmd1} && ${cmd2} && ${cmd3}" &> /dev/null
+    then
+      print_SUCCESS
+    else
+      print_FAIL
+    fi
+  else
+    warn 'Usage error: config_gituser user@hostname'
+  fi
+}
+
+# Usage: config_ssh_access from_user@hostname to_user@hostname
+function config_ssh_access {
+  if [[ $# -eq 2 ]]
+  then
+    local from_user=${1%@*} from_host=${1#*@}
+    local to_user=${2%@*} to_host=${2#*@}
+    pad " · Deploying SSH keys to ${to_user}@${to_host}"
+    cmd1='[[ -f ~/.ssh/id_rsa ]]'
+    cmd2="ssh-keygen -q -N '' -f ~/.ssh/id_rsa"
+    if ${ssh} ${from_user}@${from_host} "${cmd1} || ${cmd2}" &> /dev/null
+    then
+      cmd1='cat .ssh/id_rsa.pub'
+      if from_key=$(${ssh} ${from_user}@${from_host} "${cmd1}" 2> /dev/null)
+      then
+        cmd1='mkdir -p -m 700 .ssh'
+	cmd2="echo '${from_key}' >> .ssh/authorized_keys"
+        cmd3='chmod 600 .ssh/authorized_keys'
+        if ${ssh} ${to_user}@${to_host} "${cmd1} && ${cmd2} && ${cmd3}" &> /dev/null
+	then
+	  print_SUCCESS
+	else
+	  print_FAIL
+	fi
+      else
+        print_FAIL
+      fi
+    else
+      print_FAIL
+    fi
+  else
+    warn 'Usage error: config_gituser user@hostname'
+  fi
+}
+
+# Patch galaxy.py locally, because workstation is the control node
+function patch_ansible_galaxy {
+  local galaxy_py='/usr/lib/python2.7/site-packages/ansible/cli/galaxy.py'
+  if [[ "${1}" = --reverse ]]
+  then
+    if [[ -f ${galaxy_py}.orig ]]
+    then
+      pad " · Restoring ${galaxy_py##*/} for offline use"
+      if mv ${galaxy_py}.orig ${galaxy_py} &> /dev/null
+      then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    fi
+  else
+    # Sed command for patching galaxy.py
+    local sedcmd='149c\
+        if self.action in ("import","info","search","login","setup","delete") or \\'
+    if [[ ! -f ${galaxy_py}.orig ]]
+    then
+      pad " · Patching ${galaxy_py##*/} for offline use"
+      if sed -i.orig -e "${sedcmd}" ${galaxy_py} &> /dev/null
+      then
+        print_SUCCESS
+      else
+        print_FAIL
+      fi
+    fi
+  fi
+}
+
+# vim: ai sw=2

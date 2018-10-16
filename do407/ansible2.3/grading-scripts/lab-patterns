@@ -1,0 +1,174 @@
+#!/bin/bash
+#
+# Copyright 2017 Red Hat, Inc.
+#
+# NAME
+#     lab-patterns - grading script for DO407 host patterns GE
+#
+# SYNOPSIS
+#     lab-configure-async {setup|grade|cleanup|solve|reset}
+#
+#        setup   - prepare the system for starting the lab
+#        cleanup - perform post-lab cleanup (not comprehensive like reset)
+#
+# DESCRIPTION
+#     This script, based on singular argument, does setup and cleanup for lab-patterns.
+#
+# CHANGELOG
+#   * Fri Jun 30 2017 Artur Glogowski <aglogows@redhat.com>
+#   - original code
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Initialize and set some variables
+run_as_root='true'
+runuser='runuser student -c'
+ssh='ssh -o StrictHostKeyChecking=no'
+scp='scp -q'
+target='workstation'
+# Conditional to make the script compatible with the
+# demo version.
+if [[ ${lab_demo_mode} == "demo" ]]; then
+  env="demo"
+else
+  env="dev"
+fi
+
+lab_dir="/home/student"
+working_dir=${lab_dir}/patterns
+ansible_cfg_file=${working_dir}/ansible.cfg
+ansible_hst_file=${working_dir}/inventory
+ansible_user=devops
+ansible_target=servera.lab.example.com
+#ansible_pkgs=(httpd firewalld python-httplib2)
+
+# This defines which subcommands are supported (solve, reset, etc.).
+# Corresponding lab_COMMAND functions must be defined.
+#declare -a valid_commands=(setup grade cleanup solve reset)
+declare -a valid_commands=(setup cleanup )
+
+function lab_setup {
+  reqd_package='ansible'
+
+  echo
+  echo "Setting up ${target} for lab exercise work:"
+  echo
+  host_reachable ${target}
+
+
+  if ! rpm -q --quiet ${reqd_package}
+  then
+    pad " . Installing Ansible"
+    echo "student" | sudo -S yum install -y ${reqd_package} &>/dev/null
+    print_SUCCESS
+  fi
+
+  pad " . Creating the working directory"
+  ${runuser} "mkdir -p ${working_dir} &>/dev/null"
+  print_SUCCESS
+
+  pad " . Creating Ansible configuration file"
+  ${runuser} "cat > ${ansible_cfg_file} << EOF
+[defaults]
+inventory = ${ansible_hst_file}
+EOF"
+  if stat ${ansible_cfg_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+  pad " . Creating host file"
+  ${runuser} "cat > ${ansible_hst_file} << EOF
+srv1.example.com
+srv2.example.com
+s1.lab.example.com
+s2.lab.example.com
+
+[web]
+jupiter.lab.example.com
+saturn.example.com
+
+[db]
+db1.example.com
+db2.example.com
+db3.example.com
+
+[lb]
+lb1.lab.example.com
+lb2.lab.example.com
+
+[boston]
+db1.example.com
+jupiter.lab.example.com
+lb2.lab.example.com
+
+[london]
+db2.example.com
+db3.example.com
+file1.lab.example.com
+lb1.lab.example.com
+
+[dev]
+web1.lab.example.com
+db3.example.com
+
+[stage]
+file2.example.com
+db2.example.com
+
+[prod]
+lb2.lab.example.com
+db1.example.com
+jupiter.lab.example.com
+
+[function:children]
+web
+db
+lb
+city
+
+[city:children]
+boston
+london
+environments
+
+[environments:children]
+dev
+stage
+prod
+new
+
+[new]
+172.25.252.23
+172.25.252.44
+172.25.252.32
+
+EOF"
+  if stat ${ansible_hst_file} &>/dev/null; then
+    print_SUCCESS
+  else
+    print_FAIL
+  fi  
+
+}
+
+
+function lab_cleanup {
+
+  echo
+  echo "Cleaning up the lab on ${target}:"
+  echo
+  host_reachable ${target}
+  print_SUCCESS
+
+}
+
+
+############### Don't EVER change anything below this line ###############
+
+# Source library of functions
+source /usr/local/lib/${function_lib}
+source /usr/local/lib/${platform_lib}
+
+grading_main_program "$@"

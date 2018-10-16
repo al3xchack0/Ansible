@@ -1,0 +1,10 @@
+### Fire & forget async task
+
+- hosts: all
+  tasks:
+  - name: Big task
+    get_url:
+      url: http://classroom.example.com/content/rhel7.0/x86_64/isos/rhel-server-7.0-x86_64-dvd.iso
+      dest: /var/tmp
+    async: 300
+    poll: 0 
